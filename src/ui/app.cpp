@@ -1,16 +1,21 @@
 #include "app.hpp"
-
+#include "screens/game_screen.hpp"
 #include <raylib.h>
 
+Gui::Gui(Game &game) : game_(game) { ; }
 void Gui::run() {
-  InitWindow(800, 600, "Quarto");
+  InitWindow(1920, 1080, "Quarto");
+  SetWindowState(FLAG_FULLSCREEN_MODE);
+  GameScreen game_screen(game_);
 
   while (!WindowShouldClose()) {
     BeginDrawing();
 
     ClearBackground(RAYWHITE);
 
-    DrawText("Quarto", 300, 250, 40, BLACK);
+    game_screen.draw_piece_pool();
+
+    DrawText("Hello world", 300, 250, 40, BLACK);
 
     EndDrawing();
   }

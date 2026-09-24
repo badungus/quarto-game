@@ -4,6 +4,9 @@
 
 class Gui {
 public:
-  Gui(Game game);
+  Gui(Game &game);
   void run();
+
+private:
+  Game &game_;
 };

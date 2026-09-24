@@ -22,6 +22,10 @@ add_executable(quarto
     src/engine/search.cpp
     src/engine/tt.cpp
     src/engine/wincheck.cpp
+    src/game/game_state.cpp
+    src/ui/app.cpp
+    src/ui/screens/game_screen.cpp
+    src/ui/widgets/button.cpp
 )
 
 target_include_directories(quarto PRIVATE include)
