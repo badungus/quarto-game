@@ -3,6 +3,7 @@
 Game::Game() {
   board_.fill(-1);
   avail_.fill(true);
+  current_player_ = PlayerID::ONE;
 }
 
 void Game::place_piece(Cell c) {

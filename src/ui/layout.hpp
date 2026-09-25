@@ -16,3 +16,7 @@ inline float ui_scale() {
 constexpr float POOL_X = 1500;
 constexpr float POOL_Y = 600;
 constexpr float POOL_TILE = 100;
+
+constexpr float BOARD_X = 500;
+constexpr float BOARD_Y = 300;
+constexpr float BOARD_TILE = 100;

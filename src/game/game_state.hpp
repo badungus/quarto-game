@@ -2,12 +2,14 @@
 
 #include "types.hpp"
 
+enum class PlayerID { ONE, TWO };
+
 class Game {
 private:
   Board board_;
   Piece hand_;
   Avail avail_;
-  bool current_player_;
+  PlayerID current_player_;
   std::array<Undo, 17> history_;
   int top_;
   std::array<int, 4> winning_line_;
