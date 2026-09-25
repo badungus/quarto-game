@@ -13,6 +13,6 @@ inline float ui_scale() {
                   GetScreenHeight() / DESIGN_HEIGHT);
 }
 
-constexpr float PIECEPOOLX = 1500;
-constexpr float POOLBUTTONSIZE = 100;
-constexpr float PIECEPOOLY = 600;
+constexpr float POOL_X = 1500;
+constexpr float POOL_Y = 600;
+constexpr float POOL_TILE = 100;

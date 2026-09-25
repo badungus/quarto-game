@@ -2,33 +2,29 @@
 // match events.
 #include "game_screen.hpp"
 #include "../layout.hpp"
-#include "../widgets/button.hpp"
-#include <array>
 #include <raylib.h>
-#include <vector>
 
-GameScreen::GameScreen(Game &game) : game_(game) {
-  Texture2D pool_button_image = LoadTexture(
-      TextFormat("%s../assets/images/buttons/pool_button_background.png",
-                 GetApplicationDirectory()));
-
+GameScreen::GameScreen(Game &game, const Assets &assets) : game_(game) {
   for (int i = 0; i < 16; ++i) {
-    button_images[i] =
-        LoadTexture(TextFormat("%s../assets/images/pieces/piece%d.png",
-                               GetApplicationDirectory(), i + 1));
-
     int col = i % 4;
     int row = i / 4;
-
-    pool_buttons.emplace_back(PIECEPOOLX + (col * POOLBUTTONSIZE),
-                              PIECEPOOLY + (row * POOLBUTTONSIZE),
-                              POOLBUTTONSIZE, POOLBUTTONSIZE, button_images[i],
-                              pool_button_image);
+    pool_buttons_.emplace_back(
+        Rectangle{POOL_X + col * POOL_TILE, POOL_Y + row * POOL_TILE,
+                  POOL_TILE, POOL_TILE},
+        assets.pool_button_background, assets.pool_button_hover);
   }
 }
+
+void GameScreen::update(const Input &in) {
+  for (int i = 0; i < 16; ++i) {
+    if (game_.avail()[i])
+      pool_buttons_[i].update(in);
+  }
+}
+
 void GameScreen::draw_piece_pool() {
   for (int i = 0; i < 16; ++i) {
     if (game_.avail()[i])
-      pool_buttons[i].draw();
-  };
-};
+      pool_buttons_[i].draw();
+  }
+}

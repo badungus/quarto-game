@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../game/game_state.hpp"
+#include "screens/screen.hpp"
+#include "theme/assets.hpp"
 
 class Gui {
 public:
@@ -8,5 +10,6 @@ public:
   void run();
 
 private:
-  Game &game_;
+  Assets assets_; // declared before screen_, which refers to it
+  Screen screen_;
 };

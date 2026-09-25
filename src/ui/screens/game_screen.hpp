@@ -2,19 +2,19 @@
 // input into Commands.
 #pragma once
 #include "../../game/game_state.hpp"
+#include "../input.hpp"
+#include "../theme/assets.hpp"
 #include "../widgets/button.hpp"
-#include <array>
-#include <raylib.h>
 #include <vector>
 
 class GameScreen {
 private:
-  std::array<Texture2D, 16> button_images;
-  std::vector<Button> pool_buttons;
+  std::vector<Button> pool_buttons_;
   Game &game_;
 
 public:
-  GameScreen(Game &game);
+  GameScreen(Game &game, const Assets &assets);
+  void update(const Input &in);
   void draw_analysis_view();
   void draw_board_view();
   void draw_hand_slot_view();
