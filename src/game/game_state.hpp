@@ -21,6 +21,7 @@ public:
   void give_hand(Piece p);
   void unplace_piece();
   void ungive_hand();
+  void set_current_player(PlayerID current) { current_player_ = current; }
 
   bool win();
   bool draw();
@@ -32,4 +33,6 @@ public:
   const Piece &hand() const { return hand_; }
 
   const Board &board() const { return board_; }
+
+  const PlayerID &current_player() const { return current_player_; }
 };

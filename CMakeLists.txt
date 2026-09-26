@@ -29,6 +29,7 @@ add_executable(quarto
     src/ui/screens/screen.cpp
     src/ui/widgets/button.cpp
     src/ui/theme/assets.cpp
+    src/match/match_controller.cpp
 )
 
 target_include_directories(quarto PRIVATE include)

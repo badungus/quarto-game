@@ -25,7 +25,9 @@ GameScreen::GameScreen(Game &game, const Assets &assets)
 }
 
 void GameScreen::update(const Input &in) {
+  // board buttons
   for (int i = 0; i < 16; ++i) {
+    board_buttons_[i].update(in);
     int piece = game_.board()[i];
     bool occ = (piece >= 0);
     board_buttons_[i].set_enabled(!occ);

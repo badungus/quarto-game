@@ -1,8 +1,8 @@
 // screen.cpp - Implements Screen switching.
 #include "screen.hpp"
 
-Screen::Screen(Game &game, const Assets &assets)
-    : game_(game), game_screen_(game, assets) {}
+Screen::Screen(const Assets &assets)
+    : game_screen_(game, assets), match_controller(game) {}
 
 void Screen::update(const Input &in) {
   switch (current_) {

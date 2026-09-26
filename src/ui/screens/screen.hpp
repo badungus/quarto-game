@@ -2,6 +2,7 @@
 // and forwards update(input) and draw() to it.
 #pragma once
 #include "../../game/game_state.hpp"
+#include "../../match/match_controller.hpp"
 #include "../input.hpp"
 #include "../theme/assets.hpp"
 #include "game_screen.hpp"
@@ -10,12 +11,13 @@ enum class ScreenId { Menu, Game, Result };
 
 class Screen {
 private:
-  Game &game_;
+  Game game;
+  MatchController match_controller;
   GameScreen game_screen_;
   ScreenId current_ = ScreenId::Game;
 
 public:
-  Screen(Game &game, const Assets &assets);
+  Screen(const Assets &assets);
   void update(const Input &in);
   void draw();
 };

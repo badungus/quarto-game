@@ -1,1 +1,16 @@
-// player.hpp - Player interface shared by humans and engines: name, kind, and whether moves come from input or search.
+// player.hpp - Player interface shared by humans and engines: name, kind, and
+// whether moves come from input or search.
+#pragma once
+#include "../game/types.hpp"
+#include <optional>
+
+class Player {
+private:
+  bool piece_placed_ = false;
+
+public:
+  Player() = default;
+  virtual ~Player() = default;
+  virtual std::optional<Cell> poll_cell() { return std::nullopt; }
+  virtual std::optional<Piece> poll_piece() { return std::nullopt; }
+};

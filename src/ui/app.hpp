@@ -1,12 +1,11 @@
 #pragma once
 
-#include "../game/game_state.hpp"
 #include "screens/screen.hpp"
 #include "theme/assets.hpp"
 
 class Gui {
 public:
-  Gui(Game &game);
+  Gui();
   void run();
 
 private:

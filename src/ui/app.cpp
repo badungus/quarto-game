@@ -2,7 +2,7 @@
 #include "input.hpp"
 #include <raylib.h>
 
-Gui::Gui(Game &game) : screen_(game, assets_) {}
+Gui::Gui() : screen_(assets_) {}
 
 void Gui::run() {
   InitWindow(0, 0, "Quarto"); // 0, 0 = monitor resolution

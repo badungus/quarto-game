@@ -3,7 +3,7 @@
 
 int main() {
   Game game;
-  Gui gui(game);
+  Gui gui;
 
   gui.run();
 
