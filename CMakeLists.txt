@@ -30,6 +30,8 @@ add_executable(quarto
     src/ui/widgets/button.cpp
     src/ui/theme/assets.cpp
     src/match/match_controller.cpp
+    src/players/human_player.cpp
+    src/players/engine_player.cpp
 )
 
 target_include_directories(quarto PRIVATE include)

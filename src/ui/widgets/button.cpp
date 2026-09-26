@@ -11,7 +11,7 @@ Button::Button(Rectangle bounds, const Texture2D &background,
       content_(content) {}
 
 bool Button::update(const Input &in) {
-  hover_ = CheckCollisionPointRec(in.mouse, bounds_);
+  hover_ = CheckCollisionPointRec(in.mouse, bounds_) && enabled_;
   return hover_ && in.pressed;
 }
 

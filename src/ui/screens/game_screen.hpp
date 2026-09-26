@@ -2,9 +2,11 @@
 // input into Commands.
 #pragma once
 #include "../../game/game_state.hpp"
+#include "../../match/command.hpp"
 #include "../input.hpp"
 #include "../theme/assets.hpp"
 #include "../widgets/button.hpp"
+#include <optional>
 #include <vector>
 
 class GameScreen {
@@ -16,7 +18,7 @@ private:
 
 public:
   GameScreen(Game &game, const Assets &assets);
-  void update(const Input &in);
+  std::optional<Command> update(const Input &in);
   void draw_analysis();
   void draw_board();
   void draw_hand_slot();

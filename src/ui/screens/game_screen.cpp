@@ -1,7 +1,10 @@
 // game_screen.cpp - Implements GameScreen layout, input routing and reaction to
 // match events.
 #include "game_screen.hpp"
+#include "../../game/types.hpp"
+#include "../../match/command.hpp"
 #include "../layout.hpp"
+#include <optional>
 #include <raylib.h>
 
 GameScreen::GameScreen(Game &game, const Assets &assets)
@@ -24,10 +27,10 @@ GameScreen::GameScreen(Game &game, const Assets &assets)
   }
 }
 
-void GameScreen::update(const Input &in) {
+std::optional<Command> GameScreen::update(const Input &in) {
   // board buttons
-  for (int i = 0; i < 16; ++i) {
-    board_buttons_[i].update(in);
+  std::optional<Command> command = std::nullopt;
+  for (Cell i = 0; i < 16; ++i) {
     int piece = game_.board()[i];
     bool occ = (piece >= 0);
     board_buttons_[i].set_enabled(!occ);
@@ -38,10 +41,12 @@ void GameScreen::update(const Input &in) {
     else {
       board_buttons_[i].set_content(std::monostate{});
     }
+    if (board_buttons_[i].update(in)) {
+      command = cmd::SelectCell{i};
+    }
   }
   // pool buttons
-  for (int i = 0; i < 16; ++i) {
-    pool_buttons_[i].update(in);
+  for (Piece i = 0; i < 16; ++i) {
     bool avail = game_.avail()[i];
     pool_buttons_[i].set_enabled(avail);
     if (!avail) {
@@ -50,7 +55,11 @@ void GameScreen::update(const Input &in) {
     } else {
       pool_buttons_[i].set_content(&assets_.pool_button_images[i]);
     }
+    if (pool_buttons_[i].update(in)) {
+      command = cmd::SelectGive{i};
+    }
   }
+  return command;
 }
 
 void GameScreen::draw_piece_pool() {

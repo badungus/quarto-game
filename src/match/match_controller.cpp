@@ -3,23 +3,27 @@
 #include "match_controller.hpp"
 #include "../game/game_state.hpp"
 #include "../game/types.hpp"
+#include "../players/engine_player.hpp"
+#include "../players/human_player.hpp"
 #include <optional>
+#include <variant>
 
-MatchController::MatchController(Game &game)
-    : game_(game), player_1(), player_2() {
-
-      };
+namespace {
+template <class... Ts> struct overloaded : Ts... {
+  using Ts::operator()...;
+};
+} // namespace
 
 void MatchController::update() {
   PlayerID current = game_.current_player();
-  bool turn_complete;
+  bool turn_complete = false;
   switch (current) {
   case PlayerID::ONE:
-    turn_complete = update_player(player_1);
+    turn_complete = update_player(*player_1_);
     break;
 
   case PlayerID::TWO:
-    turn_complete = update_player(player_2);
+    turn_complete = update_player(*player_2_);
     break;
   }
   if (turn_complete) {
@@ -45,4 +49,24 @@ bool MatchController::update_player(Player &player) {
     }
   }
   return false;
+}
+
+void MatchController::start(const MatchConfig &config) {
+  player_1_ = make_player(config.player_1, game_);
+  player_2_ = make_player(config.player_2, game_);
+}
+
+std::unique_ptr<Player> MatchController::make_player(const Seat &seat,
+                                                     const Game &game) {
+  return std::visit(overloaded{
+                        [](const HumanSeat &) -> std::unique_ptr<Player> {
+                          return std::make_unique<HumanPlayer>();
+                        },
+                        [&](const EngineSeat &s) -> std::unique_ptr<Player> {
+                          return std::make_unique<EnginePlayer>(
+                              game, s.engine_name, s.search_depth,
+                              s.time_limit);
+                        },
+                    },
+                    seat);
 }

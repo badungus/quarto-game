@@ -6,8 +6,6 @@
 
 class Player {
 private:
-  bool piece_placed_ = false;
-
 public:
   Player() = default;
   virtual ~Player() = default;

@@ -3,7 +3,9 @@
 #pragma once
 #include "../game/game_state.hpp"
 #include "../players/player.hpp"
+#include "command.hpp"
 #include "match_config.hpp"
+#include <memory>
 
 class MatchController {
 private:
@@ -11,21 +13,18 @@ private:
 
   bool piece_placed_;
 
-  HumanSeat human_1{};
-
-  EngineSeat engine_1{"Thor", 3, 2000};
-
-  MatchConfig match_config{
-      human_1,
-      engine_1,
-  };
-  Player player_1;
-
-  Player player_2;
-
+  MatchConfig match_config_;
+  std::unique_ptr<Player> make_player(const Seat &seat, const Game &game);
+  std::unique_ptr<Player> player_1_;
+  std::unique_ptr<Player> player_2_;
+  void start(const MatchConfig &config);
   bool update_player(Player &player);
 
 public:
-  MatchController(Game &game);
+  MatchController(Game &game, MatchConfig &config,
+                  std::optional<Command> &command)
+      : game_(game) {
+    start(config);
+  };
   void update();
 };
