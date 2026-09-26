@@ -1,26 +1,24 @@
 // screen.cpp - Implements Screen switching.
 #include "screen.hpp"
-#include "../../match/command.hpp"
-#include "../../match/match_config.hpp"
 #include <optional>
 
-Screen::Screen(const Assets &assets)
-    : game_screen_(game, assets),
-      match_controller(game, match_config, command) {
-  MatchConfig match_config;
-
-  match_config.player_1 = HumanSeat{};
-  match_config.player_2 = EngineSeat{"Thor", 3, 2000};
-}
+Screen::Screen(const Assets &assets) : game_screen_(game, assets) {}
 
 void Screen::update(const Input &in) {
-  std::optional<Command> command;
   switch (current_) {
-  case ScreenId::Game:
+  case ScreenId::Menu: {
+    break;
+  };
+  case ScreenId::Game: {
     command = game_screen_.update(in);
+
+    match_controller.update();
     break;
-  default:
+  }
+  case ScreenId::Result: {
+
     break;
+  }
   }
 }
 

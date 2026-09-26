@@ -19,5 +19,6 @@ void Gui::run() {
   }
 
   assets_.unload();
+
   CloseWindow();
 }

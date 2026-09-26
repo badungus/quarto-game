@@ -9,5 +9,5 @@
 EnginePlayer::EnginePlayer(const Game &game, std::string name, int depth,
                            int time) {};
 
-std::optional<Cell> EnginePlayer::poll_cell() {};
-std::optional<Piece> EnginePlayer::poll_piece() {};
+std::optional<Cell> EnginePlayer::poll_cell() { return std::nullopt; };
+std::optional<Piece> EnginePlayer::poll_piece() { return std::nullopt; };

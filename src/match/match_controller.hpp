@@ -11,8 +11,8 @@ class MatchController {
 private:
   Game &game_;
 
-  bool piece_placed_;
-
+  bool piece_placed_ = true;
+  std::optional<Command> &command_;
   MatchConfig match_config_;
   std::unique_ptr<Player> make_player(const Seat &seat, const Game &game);
   std::unique_ptr<Player> player_1_;
@@ -23,7 +23,7 @@ private:
 public:
   MatchController(Game &game, MatchConfig &config,
                   std::optional<Command> &command)
-      : game_(game) {
+      : game_(game), command_(command) {
     start(config);
   };
   void update();

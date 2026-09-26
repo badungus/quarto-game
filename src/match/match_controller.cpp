@@ -34,11 +34,13 @@ void MatchController::update() {
 }
 
 bool MatchController::update_player(Player &player) {
-  std::optional<Cell> c = player.poll_cell();
+  if (!piece_placed_) {
+    std::optional<Cell> c = player.poll_cell();
 
-  if (c.has_value()) {
-    game_.place_piece(*c);
-    piece_placed_ = true;
+    if (c.has_value()) {
+      game_.place_piece(*c);
+      piece_placed_ = true;
+    }
   }
 
   if (piece_placed_) {
@@ -59,8 +61,8 @@ void MatchController::start(const MatchConfig &config) {
 std::unique_ptr<Player> MatchController::make_player(const Seat &seat,
                                                      const Game &game) {
   return std::visit(overloaded{
-                        [](const HumanSeat &) -> std::unique_ptr<Player> {
-                          return std::make_unique<HumanPlayer>();
+                        [this](const HumanSeat &) -> std::unique_ptr<Player> {
+                          return std::make_unique<HumanPlayer>(command_);
                         },
                         [&](const EngineSeat &s) -> std::unique_ptr<Player> {
                           return std::make_unique<EnginePlayer>(

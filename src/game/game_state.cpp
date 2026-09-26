@@ -7,13 +7,17 @@ Game::Game() {
 }
 
 void Game::place_piece(Cell c) {
-  history_[top_++] = {c, hand_};
-  board_[c] = hand_;
+  if (board_[c] == -1) {
+    history_[top_++] = {c, hand_};
+    board_[c] = hand_;
+  }
 }
 
 void Game::give_hand(Piece p) {
-  hand_ = p;
-  avail_[p] = false;
+  if (avail_[p]) {
+    hand_ = p;
+    avail_[p] = false;
+  }
 }
 
 void Game::unplace_piece() {
