@@ -10,21 +10,31 @@ namespace quarto {
 // Horizon evaluation: the side to move wins outright if any placement of the
 // held piece completes a line; otherwise guess a draw. Restores the position.
 
-Move search(Position &pos, int depth) {
+// Used when go gives no depth.
+constexpr int DEFAULT_DEPTH = 3;
 
-  std::vector<Result> best_moves;
+Move search(Position &pos, int depth, InfoFn cb) {
+  if (depth < 1)
+    depth = DEFAULT_DEPTH;
 
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_int_distribution<> dist(0,
-                                       static_cast<int>(best_moves.size()) - 1);
-  for (int i = 1; i < depth + 1; ++i) {
-    best_moves = negamax_root(pos, depth);
-    Result random_best_move = best_moves[dist(gen)];
-  };
 
-  return best_moves[dist(gen)].move; // return one of the best moves
-};
+  // negamax_root never returns an empty list, so one pick per iteration is
+  // always valid. The same pick is reported and returned.
+  Result best{0, {-1, -1}};
+  for (int i = 1; i <= depth; ++i) {
+    std::vector<Result> best_moves = negamax_root(pos, i);
+    std::uniform_int_distribution<> dist(
+        0, static_cast<int>(best_moves.size()) - 1);
+    best = best_moves[0];
+    // best = best_moves[dist(gen)]; // one of the best moves
+    if (cb)
+      cb({i, best});
+  }
+
+  return best.move;
+}
 
 std::vector<Result> negamax_root(Position &pos, int depth) {
 
@@ -65,10 +75,13 @@ std::vector<Result> negamax_root(Position &pos, int depth) {
       Cell cell = std::countr_zero(empty); // C++20
       pos.place_piece(cell);
       // An outright win, or the forced last cell - either way we are done.
-      if (move_wins(pos, cell))
+      if (move_wins(pos, cell)) {
+        pos.undo_place_piece();
         return {{INF, {cell, -1}}};
+      }
 
       if (pos.empty_cells() == 0) {
+        pos.undo_place_piece();
         return {{0, {cell, -1}}};
       }
       search_gives(cell);

@@ -17,11 +17,18 @@ namespace quarto {
 //   cell  0..15 board index (row * 4 + col) where the held piece is placed, or
 //         -1 at game start (give-only move)
 //   give  the piece handed to the opponent, or -1 if the game ends
+
 struct Result {
   Score score;
   Move move;
 };
-Move search(Position &pos, int depth);
+struct SearchInfo {
+  int depth;
+  Result result;
+};
+using InfoFn = std::function<void(const SearchInfo &)>;
+
+Move search(Position &pos, int depth, InfoFn cb);
 
 std::vector<Result> negamax_root(Position &pos, int depth);
 

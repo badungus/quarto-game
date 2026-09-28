@@ -1,69 +1,107 @@
 #include "uqi.hpp"
 #include "engine.hpp"
+#include "search.hpp"
 #include "types.hpp"
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <tuple>
 
 namespace quarto {
 
-Command parse_command(const std::string &line) {
-  if (line == "uqi")
-    return {CommandType::uqi};
-
-  if (line == "isready")
-    return {CommandType::is_ready};
-
-  if (line.starts_with("position"))
-    return {CommandType::position, {}, {parse_position(line.substr(8))}};
-
-  if (line.starts_with("go"))
-    return {CommandType::go, {}};
-
-  if (line == "stop")
-    return {CommandType::stop};
-
-  if (line == "quit")
-    return {CommandType::quit};
-
-  return {CommandType::unknown};
-}
-
 void uqi_loop(Engine &engine) {
   std::string line;
+
   while (std::getline(std::cin, line)) {
-    Command cmd = parse_command(line);
-    switch (cmd.type) {
-    case CommandType::uqi:
+    std::vector<std::string> tokens;
+    std::istringstream stream(line);
+    std::string token;
+
+    while (stream >> token) {
+      tokens.push_back(token);
+    }
+
+    if (tokens.empty())
+      continue; // no valid input
+
+    if (tokens[0] == "uqi") {
       std::cout << "uqiok" << std::endl;
-      break;
-    case CommandType::is_ready:
+      continue;
+    }
+
+    if (tokens[0] == "isready") {
       std::cout << "readyok" << std::endl;
-      break;
-    case CommandType::position:
-      engine.set_position(cmd.pos);
-      break;
-    case CommandType::go:
-      engine.go(cmd.go, [](Move m) {
-        std::cout << "bestmove " << format_move(m) << std::endl;
-      });
-      break;
-    case CommandType::stop:
+      continue;
+    }
+
+    size_t depth_idx =
+        std::find(tokens.begin(), tokens.end(), "depth") - tokens.begin();
+    if (depth_idx < tokens.size()) {
+      bool is_number =
+          depth_idx + 1 < tokens.size() && !tokens[depth_idx + 1].empty() &&
+          std::all_of(tokens[depth_idx + 1].begin(),
+                      tokens[depth_idx + 1].end(),
+                      [](unsigned char c) { return std::isdigit(c); });
+      if (is_number) {
+        int depth = std::stoi(tokens[depth_idx + 1]);
+        engine.set_depth(depth);
+      }
+    }
+
+    size_t movetime_idx =
+        std::find(tokens.begin(), tokens.end(), "movetime") - tokens.begin();
+    if (movetime_idx < tokens.size()) {
+      bool is_number =
+          movetime_idx + 1 < tokens.size() &&
+          !tokens[movetime_idx + 1].empty() &&
+          std::all_of(tokens[movetime_idx + 1].begin(),
+                      tokens[movetime_idx + 1].end(),
+                      [](unsigned char c) { return std::isdigit(c); });
+      if (is_number) {
+        int movetime = std::stoi(tokens[movetime_idx + 1]);
+        engine.set_movetime(movetime);
+      }
+    }
+
+    if (std::find(tokens.begin(), tokens.end(), "infinite") != tokens.end()) {
+      engine.set_infinite(true);
+    }
+
+    size_t pos_idx =
+        std::find(tokens.begin(), tokens.end(), "position") - tokens.begin();
+    if (pos_idx < tokens.size()) {
+      engine.set_position(parse_position(tokens[pos_idx + 1]));
+    }
+
+    if (tokens[0] == "go") {
+      engine.go({.on_info =
+                     [](const SearchInfo &i) {
+                       std::cout << "info depth " << i.depth << " score "
+                                 << i.result.score << " move "
+                                 << format_move(i.result.move) << std::endl;
+                     },
+                 .on_bestmove =
+                     [](const Move m) {
+                       std::cout << "bestmove " << format_move(m) << std::endl;
+                     }});
+    }
+
+    if (tokens[0] == "stop") {
       engine.stop();
-      break;
-    case CommandType::quit:
+    }
+
+    if (tokens[0] == "quit") {
       engine.stop();
-    case CommandType::unknown:
       break;
     }
   }
-  engine.stop();
 }
 
 // default: ..../..../..../....|-
-// example: ScHfschf../ScHf..scHF/..../...schF|-
+// example: ScHfschf../ScHF..scHF/..../...schF|-
 std::tuple<Bitboard, std::array<Bitboard, 4>, Piece>
 parse_position(const std::string &input) {
   Bitboard occ = 0;
