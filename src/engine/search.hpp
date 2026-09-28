@@ -1,29 +1,30 @@
 #pragma once
-
-#include <optional>
-#include <utility>
+#include "position.hpp"
+#include "types.hpp"
+#include <functional>
 #include <vector>
-
-#include "types.hpp"   // Grid
-#include "wincheck.hpp"
 
 namespace quarto {
 
 // The engine's entire public surface: position in -> best move out.
 //
-//   grid           current board (4x4)
-//   piece_in_hand  the piece the side to move must place (or nullopt at game start)
-//   available      pieces not yet placed and not in hand
+//   occ            occupied cells
+//   prop           per property bit, the cells whose piece has that bit set
+//   piece_in_hand  the piece the side to move must place, or -1 at game start
 //   depth          search depth (nullopt -> engine picks a default)
 //
 // Returns {cell, give}:
-//   cell  0..15 board index (row * 4 + col) where the held piece is placed, or -1
-//   give  the piece handed to the opponent, or -1 if none remain
-std::pair<std::pair<int, int>, int> find_best_move(const Grid& grid,
-                                   std::optional<int> piece_in_hand,
-                                   const std::vector<int>& available,
-                                   std::optional<int> depth);
+//   cell  0..15 board index (row * 4 + col) where the held piece is placed, or
+//         -1 at game start (give-only move)
+//   give  the piece handed to the opponent, or -1 if the game ends
+struct Result {
+  Score score;
+  Move move;
+};
+Move search(Position &pos, int depth);
 
-Score negamax(Position&, int depth, Score alpha, Score beta);
-                                   
-}  // namespace quarto
+std::vector<Result> negamax_root(Position &pos, int depth);
+
+Score negamax(Position &, int depth, Score alpha, Score beta);
+
+} // namespace quarto
