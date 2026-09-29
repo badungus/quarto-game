@@ -6,6 +6,7 @@
 #include <array>
 #include <cctype>
 #include <iostream>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -73,9 +74,15 @@ void uqi_loop(Engine &engine) {
     size_t pos_idx =
         std::find(tokens.begin(), tokens.end(), "position") - tokens.begin();
     if (pos_idx < tokens.size()) {
-      engine.set_position(parse_position(tokens[pos_idx + 1]));
-    }
 
+      if (std::regex_match(
+              tokens[pos_idx + 1],
+              std::regex(
+                  R"(^(?:([a-zA-Z]{4}|\.){4}\/){3}(?:([a-zA-Z]{4}|\.){4})\|([a-zA-Z]{4}|\-)$)"))) {
+        // check if string matches position format
+        engine.set_position(parse_position(tokens[pos_idx + 1]));
+      }
+    }
     if (tokens[0] == "go") {
       engine.go({.on_info =
                      [](const SearchInfo &i) {
