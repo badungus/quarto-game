@@ -17,7 +17,7 @@ struct Command {
 
 std::tuple<Bitboard, std::array<Bitboard, 4>, Piece>
 parse_position(const std::string &input);
-std::string format_move(Move m);
+std::string format_move(Move m, bool mate);
 void uqi_loop(Engine &engine);
 std::vector<Command> parse_command(const std::string &line);
 SearchLimits parse_search_limits(const std::string &line);

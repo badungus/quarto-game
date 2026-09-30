@@ -8,7 +8,7 @@
 
 namespace quarto {
 
-Move Search::search(Position &pos, int depth, InfoFn cb) {
+Result Search::search(Position &pos, int depth, InfoFn cb) {
   nodes_ = 0;
   start_time_ = std::chrono::steady_clock::now();
   std::random_device rd;
@@ -23,15 +23,16 @@ Move Search::search(Position &pos, int depth, InfoFn cb) {
       std::uniform_int_distribution<> dist(
           0, static_cast<int>(best_moves.size()) - 1);
       best = best_moves[0];
-      if (best.score >= INF - i) {
+      if (best.score >= WIN - i) {
         stop_ = true;
+        best.score = WIN;
       }
       // best = best_moves[dist(gen)]; // one of the best moves
       if (cb)
         cb({i, best});
     }
   }
-  return best.move;
+  return best;
 }
 
 std::vector<Result> Search::negamax_root(Position &pos, int depth) {
@@ -75,7 +76,7 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
     pos.place_piece(cell);
     if (move_wins(pos, cell)) { // An outright win
       pos.undo_place_piece();
-      return {{INF, {cell, -1}}};
+      return {{WIN, {cell, -1}}};
     }
 
     if (pos.empty_cells() == 0) { // draw

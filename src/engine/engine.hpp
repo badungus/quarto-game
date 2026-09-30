@@ -24,7 +24,7 @@ struct SearchLimits {
 
 struct SearchCallbacks {
   InfoFn on_info;
-  std::function<void(Move)> on_bestmove;
+  std::function<void(Result)> on_bestmove;
 };
 
 class Engine {

@@ -84,7 +84,7 @@ void uqi_loop(Engine &engine) {
       if (std::regex_match(
               tokens[pos_idx + 1],
               std::regex(
-                  R"(^(?:([a-zA-Z]{4}|\.){4}\/){3}(?:([a-zA-Z]{4}|\.){4})\|([a-zA-Z]{4}|\-)$)"))) {
+                  R"((?:([a-zA-Z]{4}|\.){4}\/){3}(?:([a-zA-Z]{4}|\.){4})\|([a-zA-Z]{4}|\-))"))) {
         // check if string matches position format
         engine.set_position(parse_position(tokens[pos_idx + 1]));
       }
@@ -95,12 +95,16 @@ void uqi_loop(Engine &engine) {
                        std::osyncstream(std::cout)
                            << "info depth " << i.depth << " score "
                            << i.result.score << " move "
-                           << format_move(i.result.move) << std::endl;
+                           << format_move(i.result.move,
+                                          (i.result.score == WIN))
+                           << std::endl;
                      },
                  .on_bestmove =
-                     [](const Move m) {
+                     [](const Result result) {
                        std::osyncstream(std::cout)
-                           << "bestmove " << format_move(m) << std::endl;
+                           << "bestmove "
+                           << format_move(result.move, (result.score == WIN))
+                           << std::endl;
                      }});
     }
 
@@ -154,7 +158,7 @@ parse_position(const std::string &input) {
   return {occ, board, hand};
 }
 
-std::string format_move(Move m) {
+std::string format_move(Move m, bool mate) {
   std::string move_string = "";
   if (m.cell < 0) {
     move_string += '-';
@@ -168,7 +172,7 @@ std::string format_move(Move m) {
   move_string += '|';
 
   if (m.give < 0) {
-    move_string += '-';
+    move_string += mate ? '#' : '-';
   } else {
     const std::array<char, 4> upper = {'S', 'C', 'H', 'F'};
     const std::array<char, 4> lower = {'s', 'c', 'h', 'f'};
@@ -177,7 +181,6 @@ std::string format_move(Move m) {
       move_string += (m.give & (1 << i)) ? upper[i] : lower[i];
     }
   }
-
   return move_string;
 }
 
@@ -193,7 +196,7 @@ std::array<std::string, 16> create_tokens(std::string input) {
       squares[idx++] += c;
     } else {
       squares[idx] += c;
-      if (++letter_counter % 4 == 0) {
+      if (++letter_counter == 4) {
         idx++;
         letter_counter = 0;
       }

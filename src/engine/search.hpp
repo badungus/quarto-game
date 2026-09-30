@@ -36,7 +36,7 @@ using InfoFn = std::function<void(const SearchInfo &)>;
 
 class Search {
 private:
-  std::uint64_t nodes_;                              // nodes visited this search
+  std::uint64_t nodes_; // nodes visited this search
   std::chrono::steady_clock::time_point start_time_; // when search() began
   int movetime_;                                     // time budget in ms
   // Set when time runs out or on request (from another thread); aborts search.
@@ -49,7 +49,7 @@ private:
   Score negamax(Position &, int depth, Score alpha, Score beta);
 
 public:
-  Move search(Position &pos, int depth, InfoFn cb);
+  Result search(Position &pos, int depth, InfoFn cb);
   // Time budget for the next search(), in milliseconds.
   void set_movetime(int movetime) { movetime_ = movetime; }
   // Ask a running search to stop; it returns its last completed result.

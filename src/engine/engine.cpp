@@ -21,8 +21,8 @@ void Engine::go(SearchCallbacks callback) {
   // The thread searches its own copy of the position, so the engine can be
   // reset below and reconfigured while the search is still running.
   search_thread_ = std::jthread([this, pos = pos_, depth, callback]() mutable {
-    Move best_move = search_.search(pos, depth, callback.on_info);
-    callback.on_bestmove(best_move);
+    Result best_result = search_.search(pos, depth, callback.on_info);
+    callback.on_bestmove(best_result);
   });
 
   set_position(DEFAULT_POSITION); // reset to start position
