@@ -69,6 +69,10 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
       }
       avail &= (avail - 1);
     }
+    // Nothing in hand means there is nothing to place: giving is the only move.
+    if (best_moves.empty())
+      return {{0, {-1, -1}}}; // search stopped
+    return best_moves;
   }
 
   while (empty) {

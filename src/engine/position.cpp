@@ -12,6 +12,9 @@ void Position::load(Bitboard occ, std::array<Bitboard, 4> prop,
   key_ = (hand_ >= 0) ? HELD[hand_] : 0;
   top_ = 0;
   avail_ = 0xFFFF;
+  if (hand_ >= 0) {
+    avail_ &= ~(Bitboard{1} << hand_); // the piece in hand cannot be given again
+  }
 
   while (occ) {
     int square = std::countr_zero(occ);
