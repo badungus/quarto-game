@@ -12,7 +12,8 @@ enum class GameStatus { PLAYER_ONE_WIN, DRAW, PLAYER_TWO_WIN };
 class MatchController {
 private:
   Game &game_;
-
+  GameStatus game_status_;
+  bool active_ = true;
   bool piece_placed_ = true;
   std::optional<Command> &command_;
   MatchConfig match_config_;
@@ -29,4 +30,6 @@ public:
     start(config);
   };
   void update();
+  bool is_piece_placed() { return piece_placed_; }
+  bool active() { return active_; }
 };

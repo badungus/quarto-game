@@ -3,6 +3,7 @@
 #pragma once
 #include "../../game/game_state.hpp"
 #include "../../match/command.hpp"
+#include "../../match/match_controller.hpp"
 #include "../input.hpp"
 #include "../theme/assets.hpp"
 #include "../widgets/button.hpp"
@@ -14,10 +15,12 @@ private:
   std::vector<Button> pool_buttons_;
   std::vector<Button> board_buttons_;
   Game &game_;
+  MatchController &match_controller_;
   const Assets &assets_;
 
 public:
-  GameScreen(Game &game, const Assets &assets);
+  GameScreen(Game &game, MatchController &match_controller,
+             const Assets &assets);
   std::optional<Command> update(const Input &in);
   void draw_analysis();
   void draw_board();

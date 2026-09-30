@@ -14,9 +14,8 @@ void Assets::load() {
       LoadTexture(TextFormat("%s../assets/images/buttons/pool_button_armed.png",
                              GetApplicationDirectory()));
   for (int i = 0; i < 16; ++i) {
-    pool_button_images[i] =
-        LoadTexture(TextFormat("%s../assets/images/pieces/piece%d.png",
-                               GetApplicationDirectory(), i + 1));
+    pool_button_images[i] = LoadTexture(TextFormat(
+        "%s../assets/images/pieces/piece%d.png", GetApplicationDirectory(), i));
   }
 }
 

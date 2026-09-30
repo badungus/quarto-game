@@ -6,6 +6,7 @@
 #include "../game/types.hpp"
 #include "player.hpp"
 #include "process.hpp"
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -32,6 +33,7 @@ private:
   std::vector<EngineOutput> engine_info_;
   OptionalMove parse_move(std::string move_string);
   OptionalMove bestmove_;
+  std::mutex bestmove_mutex_; // bestmove_ is written from the reader thread
   std::vector<EngineOutput> engine_output_;
   TinyProcessLib::Process engine_;
   bool searching_ = false;

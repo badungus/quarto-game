@@ -6,18 +6,22 @@
 #include <variant>
 
 Button::Button(Rectangle bounds, const Texture2D &background,
-               const Texture2D &hover_image, ButtonContent content)
+               const Texture2D &hover_image, const Texture2D &armed_image,
+               ButtonContent content)
     : bounds_(bounds), background_(background), hover_image_(hover_image),
-      content_(content) {}
+      armed_image_(armed_image), content_(content) {}
 
 bool Button::update(const Input &in) {
   hover_ = CheckCollisionPointRec(in.mouse, bounds_) && enabled_;
-  return hover_ && in.pressed;
+  armed_ = hover_ && (in.is_pressed || in.released);
+  return armed_ && in.released;
 }
 
 void Button::draw() const {
   float s = ui_scale();
-  const Texture2D &tex = hover_ ? hover_image_ : background_;
+  const Texture2D &tex = armed_   ? armed_image_
+                         : hover_ ? hover_image_
+                                  : background_;
   Rectangle dest = {bounds_.x * s, bounds_.y * s, bounds_.width * s,
                     bounds_.height * s};
   // 9-slice: corners keep their size, edges and centre stretch. The border

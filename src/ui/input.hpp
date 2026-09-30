@@ -6,5 +6,6 @@ struct Input {
   Vector2 mouse; // in 1920x1080 design space
   bool pressed;  // left button went down this frame
   bool released;
+  bool is_pressed;
 };
 Input read_input();

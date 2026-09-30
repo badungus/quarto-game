@@ -2,7 +2,8 @@
 #include "screen.hpp"
 #include <optional>
 
-Screen::Screen(const Assets &assets) : game_screen_(game, assets) {}
+Screen::Screen(const Assets &assets)
+    : game_screen_(game, match_controller, assets) {}
 
 void Screen::update(const Input &in) {
   switch (current_) {

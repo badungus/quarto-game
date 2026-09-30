@@ -17,8 +17,8 @@ private:
 public:
   Game();
 
-  void place_piece(Cell c);
-  void give_hand(Piece p);
+  bool place_piece(Cell c);
+  bool give_hand(Piece p);
   void unplace_piece();
   void ungive_hand();
   void set_current_player(PlayerID current) { current_player_ = current; }

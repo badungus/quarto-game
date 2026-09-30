@@ -3,12 +3,15 @@
 #include "game_screen.hpp"
 #include "../../game/types.hpp"
 #include "../../match/command.hpp"
+#include "../../match/match_config.hpp"
+#include "../../match/match_controller.hpp"
 #include "../layout.hpp"
 #include <optional>
 #include <raylib.h>
 
-GameScreen::GameScreen(Game &game, const Assets &assets)
-    : game_(game), assets_(assets) {
+GameScreen::GameScreen(Game &game, MatchController &match_controller,
+                       const Assets &assets)
+    : game_(game), match_controller_(match_controller), assets_(assets) {
 
   for (int i = 0; i < 16; ++i) {
     int col = i % 4;
@@ -18,12 +21,12 @@ GameScreen::GameScreen(Game &game, const Assets &assets)
         Rectangle{POOL_X + col * POOL_TILE, POOL_Y + row * POOL_TILE, POOL_TILE,
                   POOL_TILE},
         assets.pool_button_background, assets.pool_button_hover,
-        &assets.pool_button_images[i]);
-    board_buttons_.emplace_back(Rectangle{BOARD_X + col * BOARD_TILE,
-                                          BOARD_Y + row * BOARD_TILE,
-                                          BOARD_TILE, BOARD_TILE},
-                                assets.pool_button_background,
-                                assets.pool_button_hover, std::monostate{});
+        assets.pool_button_armed, &assets.pool_button_images[i]);
+    board_buttons_.emplace_back(
+        Rectangle{BOARD_X + col * BOARD_TILE, BOARD_Y + row * BOARD_TILE,
+                  BOARD_TILE, BOARD_TILE},
+        assets.pool_button_background, assets.pool_button_hover,
+        assets.pool_button_armed, std::monostate{});
   }
 }
 
@@ -33,7 +36,9 @@ std::optional<Command> GameScreen::update(const Input &in) {
   for (Cell i = 0; i < 16; ++i) {
     int piece = game_.board()[i];
     bool occ = (piece >= 0);
-    board_buttons_[i].set_enabled(!occ);
+    board_buttons_[i].set_enabled(!occ &&
+                                  !match_controller_.is_piece_placed() &&
+                                  match_controller_.active());
     if (occ) {
       board_buttons_[i].set_content(&assets_.pool_button_images[piece]);
     }
@@ -48,7 +53,8 @@ std::optional<Command> GameScreen::update(const Input &in) {
   // pool buttons
   for (Piece i = 0; i < 16; ++i) {
     bool avail = game_.avail()[i];
-    pool_buttons_[i].set_enabled(avail);
+    pool_buttons_[i].set_enabled(avail && match_controller_.is_piece_placed() &&
+                                 match_controller_.active());
     if (!avail) {
 
       pool_buttons_[i].set_content(std::monostate{});
@@ -74,3 +80,7 @@ void GameScreen::draw_board() {
     board_buttons_[i].draw();
   }
 }
+
+void GameScreen::draw_hand_slot() {
+  const Texture2D &image = assets_.pool_button_background;
+};

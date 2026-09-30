@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <mutex>
 #include <optional>
 #include <raylib.h>
 #include <regex>
@@ -39,26 +40,31 @@ EnginePlayer::EnginePlayer(const Game &game, std::string name, int depth,
           nullptr, true) {};
 
 std::optional<Cell> EnginePlayer::poll_cell() {
+  std::lock_guard<std::mutex> lock(bestmove_mutex_);
   if (!searching_) {
+    // Drop anything left over from the previous search before starting a new
+    // one, otherwise a stale cell gets played immediately.
+    bestmove_ = {};
     engine_.write(format_engine_input());
     searching_ = true;
   }
   std::optional<Cell> c = bestmove_.cell;
-  if (bestmove_.cell != std::nullopt) {
-    bestmove_.cell = std::nullopt;
-  }
+  bestmove_.cell = std::nullopt;
   return c;
 };
 
-std::optional<Cell> EnginePlayer::poll_piece() {
+std::optional<Piece> EnginePlayer::poll_piece() {
 
+  std::lock_guard<std::mutex> lock(bestmove_mutex_);
   if (!searching_) {
+    bestmove_ = {};
     engine_.write(format_engine_input());
     searching_ = true;
   }
-  std::optional<Cell> g = bestmove_.give;
-  if (bestmove_.give != std::nullopt) {
-    bestmove_.give = std::nullopt;
+  std::optional<Piece> g = bestmove_.give;
+  if (g.has_value()) {
+    // The search result is fully consumed once the piece is given.
+    bestmove_ = {};
     searching_ = false;
   }
   return g;
@@ -120,6 +126,7 @@ void EnginePlayer::parse_engine_output(std::string line) {
 
     if (std::regex_match(
             tokens[1], std::regex(R"(([a-dA-D][1-4]|-)\|([a-zA-Z]{4}|-|#))"))) {
+      std::lock_guard<std::mutex> lock(bestmove_mutex_);
       bestmove_ = parse_move(tokens[1]);
     }
   };
@@ -131,26 +138,24 @@ OptionalMove EnginePlayer::parse_move(std::string move_string) {
 
   std::string cell_string = move_string.substr(0, pos);
   std::string hand_string = move_string.substr(pos + 1);
-  Cell cell_idx;
-  Piece hand = 0;
+  OptionalMove move;
 
-  if (cell_string == "-") {
-    cell_idx = -1;
-  } else {
-    int col = (cell_string[0] - 'a');
+  // "-" means no placement / no give, so leave those fields empty.
+  if (cell_string != "-") {
+    int col = (std::tolower(static_cast<unsigned char>(cell_string[0])) - 'a');
     int row = 4 - (cell_string[1] - '0');
-    cell_idx = 4 * row + col;
+    move.cell = 4 * row + col;
   }
-  if (hand_string == "-" || hand_string == "#") {
-    hand = -1;
-  } else {
+  if (hand_string != "-" && hand_string != "#") {
+    Piece hand = 0;
     for (int i = 0; i < 4; ++i) {
       if (std::isupper(static_cast<unsigned char>(hand_string[i]))) {
         hand |= 1 << i;
       }
     }
+    move.give = hand;
   }
-  return {cell_idx, hand};
+  return move;
 };
 
 std::string EnginePlayer::format_position() {

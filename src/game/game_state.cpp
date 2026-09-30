@@ -3,23 +3,29 @@
 Game::Game() {
   board_.fill(-1);
   avail_.fill(true);
+  hand_ = -1;
+  top_ = 0;
+  winning_line_.fill(-1);
   current_player_ = PlayerID::ONE;
 }
 
-void Game::place_piece(Cell c) {
+bool Game::place_piece(Cell c) {
   if (board_[c] == -1 && hand_ >= 0) {
     history_[top_++] = {c, hand_};
     board_[c] = hand_;
+    hand_ = -1;
+    return true;
   }
+  return false;
 }
 
-void Game::give_hand(Piece p) {
-  if (p >= 0) {
-    if (avail_[p]) {
-      hand_ = p;
-      avail_[p] = false;
-    }
+bool Game::give_hand(Piece p) {
+  if (p >= 0 && avail_[p]) {
+    hand_ = p;
+    avail_[p] = false;
+    return true;
   }
+  return false;
 }
 
 void Game::unplace_piece() {
@@ -55,6 +61,9 @@ bool Game::win() {
                                                {3, 6, 9, 12}}};
 
   for (const auto &line : lines) {
+    if (board_[line[0]] < 0 || board_[line[1]] < 0 || board_[line[2]] < 0 ||
+        board_[line[3]] < 0)
+      continue;
     for (int i = 0; i < 4; ++i) {
       bool all_ones = ((board_[line[0]] & board_[line[1]] & board_[line[2]] &
                         board_[line[3]]) >>
