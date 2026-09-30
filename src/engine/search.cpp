@@ -22,24 +22,27 @@ Move Search::search(Position &pos, int depth, InfoFn cb) {
     if (!stop_) {
       std::uniform_int_distribution<> dist(
           0, static_cast<int>(best_moves.size()) - 1);
-      best = best_moves[0]; //
+      best = best_moves[0];
+      if (best.score >= INF - i) {
+        stop_ = true;
+      }
       // best = best_moves[dist(gen)]; // one of the best moves
       if (cb)
         cb({i, best});
     }
   }
-  stop_ = false;
   return best.move;
 }
 
 std::vector<Result> Search::negamax_root(Position &pos, int depth) {
   ++nodes_;
-  if (nodes_ % 1000000 == 0) {
-    stop_ = (std::chrono::steady_clock::now() - start_time_ >=
-             std::chrono::milliseconds(
-                 movetime_)); // check if movetime has been reached
-  }
 
+  if ((nodes_ & 4095) == 0) {
+    if (std::chrono::steady_clock::now() - start_time_ >=
+        std::chrono::milliseconds(movetime_)) {
+      stop_ = true;
+    } // check if movetime has been reached
+  }
   Bitboard empty = pos.empty_cells();
   Score best = -INF;
 
@@ -113,7 +116,7 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
 Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
 
   ++nodes_;
-  if (nodes_ % 100000 == 0) {
+  if ((nodes_ & 4095) == 0) {
     if (std::chrono::steady_clock::now() - start_time_ >=
         std::chrono::milliseconds(movetime_)) {
       stop_ = true;

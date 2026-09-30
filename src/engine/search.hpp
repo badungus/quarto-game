@@ -1,6 +1,7 @@
 #pragma once
 #include "position.hpp"
 #include "types.hpp"
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <functional>
@@ -38,7 +39,8 @@ private:
   std::uint64_t nodes_;                              // nodes visited this search
   std::chrono::steady_clock::time_point start_time_; // when search() began
   int movetime_;                                     // time budget in ms
-  bool stop_ = false; // set when time runs out or on request; aborts search
+  // Set when time runs out or on request (from another thread); aborts search.
+  std::atomic<bool> stop_ = false;
 
   // Scores every legal root move at `depth` and returns all moves tied for
   // the best score (never empty).

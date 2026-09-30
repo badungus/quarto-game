@@ -5,6 +5,7 @@
 #include <array>
 #include <climits>
 #include <functional>
+#include <thread>
 #include <tuple>
 
 namespace quarto {
@@ -33,9 +34,11 @@ private:
   bool infinite_ = DEFAULT_INFINITE;
   Position pos_;
   Search search_;
+  std::jthread search_thread_; // declared last: joins before the rest is gone
 
 public:
   Engine() { set_position(DEFAULT_POSITION); }
+  ~Engine() { stop(); }
   void stop();
   void set_position(std::tuple<Bitboard, std::array<Bitboard, 4>, Piece> pos);
   void go(SearchCallbacks callback);

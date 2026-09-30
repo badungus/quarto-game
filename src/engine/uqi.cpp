@@ -9,6 +9,7 @@
 #include <regex>
 #include <sstream>
 #include <string>
+#include <syncstream>
 #include <tuple>
 
 namespace quarto {
@@ -28,13 +29,15 @@ void uqi_loop(Engine &engine) {
     if (tokens.empty())
       continue; // no valid input
 
+    // Output goes through osyncstream: the search thread prints too, and
+    // lines from the two threads must not interleave.
     if (tokens[0] == "uqi") {
-      std::cout << "uqiok" << std::endl;
+      std::osyncstream(std::cout) << "uqiok" << std::endl;
       continue;
     }
 
     if (tokens[0] == "isready") {
-      std::cout << "readyok" << std::endl;
+      std::osyncstream(std::cout) << "readyok" << std::endl;
       continue;
     }
 
@@ -43,6 +46,7 @@ void uqi_loop(Engine &engine) {
     if (depth_idx < tokens.size()) {
       bool is_number =
           depth_idx + 1 < tokens.size() && !tokens[depth_idx + 1].empty() &&
+          tokens[depth_idx + 1].size() <= 9 && // fits in an int for stoi
           std::all_of(tokens[depth_idx + 1].begin(),
                       tokens[depth_idx + 1].end(),
                       [](unsigned char c) { return std::isdigit(c); });
@@ -58,6 +62,7 @@ void uqi_loop(Engine &engine) {
       bool is_number =
           movetime_idx + 1 < tokens.size() &&
           !tokens[movetime_idx + 1].empty() &&
+          tokens[movetime_idx + 1].size() <= 9 && // fits in an int for stoi
           std::all_of(tokens[movetime_idx + 1].begin(),
                       tokens[movetime_idx + 1].end(),
                       [](unsigned char c) { return std::isdigit(c); });
@@ -73,7 +78,8 @@ void uqi_loop(Engine &engine) {
 
     size_t pos_idx =
         std::find(tokens.begin(), tokens.end(), "position") - tokens.begin();
-    if (pos_idx < tokens.size()) {
+    if (pos_idx + 1 <
+        tokens.size()) { // "position" must be followed by a string
 
       if (std::regex_match(
               tokens[pos_idx + 1],
@@ -86,13 +92,15 @@ void uqi_loop(Engine &engine) {
     if (tokens[0] == "go") {
       engine.go({.on_info =
                      [](const SearchInfo &i) {
-                       std::cout << "info depth " << i.depth << " score "
-                                 << i.result.score << " move "
-                                 << format_move(i.result.move) << std::endl;
+                       std::osyncstream(std::cout)
+                           << "info depth " << i.depth << " score "
+                           << i.result.score << " move "
+                           << format_move(i.result.move) << std::endl;
                      },
                  .on_bestmove =
                      [](const Move m) {
-                       std::cout << "bestmove " << format_move(m) << std::endl;
+                       std::osyncstream(std::cout)
+                           << "bestmove " << format_move(m) << std::endl;
                      }});
     }
 
@@ -176,6 +184,7 @@ std::string format_move(Move m) {
 std::array<std::string, 16> create_tokens(std::string input) {
   std::array<std::string, 16> squares;
   int idx = 0;
+  int letter_counter = 0;
   for (char c : input) {
     if (c == '/') {
       continue;
@@ -184,8 +193,9 @@ std::array<std::string, 16> create_tokens(std::string input) {
       squares[idx++] += c;
     } else {
       squares[idx] += c;
-      if (std::tolower(c) == 'f') {
+      if (++letter_counter % 4 == 0) {
         idx++;
+        letter_counter = 0;
       }
     }
   }
