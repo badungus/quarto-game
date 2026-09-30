@@ -7,6 +7,8 @@
 #include "match_config.hpp"
 #include <memory>
 
+enum class GameStatus { PLAYER_ONE_WIN, DRAW, PLAYER_TWO_WIN };
+
 class MatchController {
 private:
   Game &game_;

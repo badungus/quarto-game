@@ -5,12 +5,42 @@
 #include "../game/game_state.hpp"
 #include "../game/types.hpp"
 #include "player.hpp"
+#include "process.hpp"
 #include <optional>
 #include <string>
+#include <vector>
+
+struct EngineOutput {
+  int depth;
+  uint32_t score;
+  std::string move;
+};
+
+struct OptionalMove {
+  std::optional<Cell> cell;
+  std::optional<Piece> give;
+};
 
 class EnginePlayer : public Player {
+private:
+  int depth_;
+  const Game &game_;
+  std::string name_;
+  int movetime_;
+  std::string buffer_;
+  void parse_engine_output(std::string input);
+  std::vector<EngineOutput> engine_info_;
+  OptionalMove parse_move(std::string move_string);
+  OptionalMove bestmove_;
+  std::vector<EngineOutput> engine_output_;
+  TinyProcessLib::Process engine_;
+  bool searching_ = false;
+  std::string format_engine_input();
+  std::string format_position();
+
 public:
-  EnginePlayer(const Game &game, std::string name, int depth, int time);
+  EnginePlayer(const Game &game, std::string name, int depth, int movetime);
+  ~EnginePlayer() { engine_.write("quit\n"); };
   std::optional<Cell> poll_cell() override;
   std::optional<Piece> poll_piece() override;
 };

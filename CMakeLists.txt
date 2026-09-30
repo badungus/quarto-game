@@ -13,15 +13,24 @@ FetchContent_Declare(
     GIT_TAG 5.5
 )
 
-FetchContent_MakeAvailable(raylib)
+# Pinned to a commit rather than v2.0.4: the tag still asks for CMake 3.1, which
+# CMake 4 refuses to configure.
+FetchContent_Declare(
+    tiny-process-library
+    GIT_REPOSITORY https://gitlab.com/eidheim/tiny-process-library.git
+    GIT_TAG 8bbb5a211c5c9df8ee69301da9d22fb977b27dc1
+)
+
+FetchContent_MakeAvailable(raylib tiny-process-library)
+
+# Every executable lands in the build root: the GUI launches quarto-engine from
+# its own directory, and assets are loaded relative to it (../assets).
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+add_subdirectory(src/engine)
 
 add_executable(quarto
     src/main.cpp
-    src/engine/ordering.cpp
-    src/engine/position.cpp
-    src/engine/search.cpp
-    src/engine/tt.cpp
-    src/engine/wincheck.cpp
     src/game/game_state.cpp
     src/ui/app.cpp
     src/ui/input.cpp
@@ -36,4 +45,7 @@ add_executable(quarto
 
 target_include_directories(quarto PRIVATE include)
 
-target_link_libraries(quarto PRIVATE raylib)
+target_link_libraries(quarto PRIVATE raylib tiny-process-library::tiny-process-library)
+
+# Building the GUI also builds the engine it launches.
+add_dependencies(quarto quarto-engine)
