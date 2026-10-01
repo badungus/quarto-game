@@ -39,15 +39,19 @@ EnginePlayer::EnginePlayer(const Game &game, std::string name, int depth,
           },
           nullptr, true) {};
 
+// Caller holds bestmove_mutex_.
+void EnginePlayer::start_search() {
+  // Drop anything left over from the previous search before starting a new
+  // one, otherwise a stale cell gets played immediately.
+  bestmove_ = {};
+  engine_.write(format_engine_input());
+  state_ = SearchState::Searching;
+}
+
 std::optional<Cell> EnginePlayer::poll_cell() {
   std::lock_guard<std::mutex> lock(bestmove_mutex_);
-  if (!searching_) {
-    // Drop anything left over from the previous search before starting a new
-    // one, otherwise a stale cell gets played immediately.
-    bestmove_ = {};
-    engine_.write(format_engine_input());
-    searching_ = true;
-  }
+  if (state_ == SearchState::Idle)
+    start_search();
   std::optional<Cell> c = bestmove_.cell;
   bestmove_.cell = std::nullopt;
   return c;
@@ -56,19 +60,28 @@ std::optional<Cell> EnginePlayer::poll_cell() {
 std::optional<Piece> EnginePlayer::poll_piece() {
 
   std::lock_guard<std::mutex> lock(bestmove_mutex_);
-  if (!searching_) {
-    bestmove_ = {};
-    engine_.write(format_engine_input());
-    searching_ = true;
-  }
+  if (state_ == SearchState::Idle)
+    start_search();
   std::optional<Piece> g = bestmove_.give;
   if (g.has_value()) {
     // The search result is fully consumed once the piece is given.
     bestmove_ = {};
-    searching_ = false;
+    state_ = SearchState::Idle;
   }
   return g;
 };
+
+void EnginePlayer::cancel() {
+  std::lock_guard<std::mutex> lock(bestmove_mutex_);
+  if (state_ == SearchState::Searching) {
+    // The engine still answers a stopped search with a bestmove, for the old
+    // position. Count it so the reader thread throws it away.
+    engine_.write("stop\n");
+    ++stale_bestmoves_;
+  }
+  bestmove_ = {};
+  state_ = SearchState::Idle;
+}
 
 void EnginePlayer::parse_engine_output(std::string line) {
 
@@ -127,7 +140,12 @@ void EnginePlayer::parse_engine_output(std::string line) {
     if (std::regex_match(
             tokens[1], std::regex(R"(([a-dA-D][1-4]|-)\|([a-zA-Z]{4}|-|#))"))) {
       std::lock_guard<std::mutex> lock(bestmove_mutex_);
+      if (stale_bestmoves_ > 0) {
+        --stale_bestmoves_;
+        return;
+      }
       bestmove_ = parse_move(tokens[1]);
+      state_ = SearchState::ResultReady;
     }
   };
 };

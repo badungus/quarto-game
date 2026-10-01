@@ -28,6 +28,9 @@ void Screen::draw() {
   case ScreenId::Game:
     game_screen_.draw_piece_pool();
     game_screen_.draw_board();
+    game_screen_.draw_hand_slot();
+    game_screen_.draw_player();
+    game_screen_.draw_buttons();
     break;
   default:
     break;

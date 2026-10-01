@@ -15,17 +15,29 @@ template <class... Ts> struct overloaded : Ts... {
 } // namespace
 
 void MatchController::update() {
+  if (command_ && std::holds_alternative<cmd::Undo>(*command_)) {
+    undo();
+    return;
+  } else if (command_ && std::holds_alternative<cmd::NewGame>(*command_)) {
+    active_ = true;
+    game_.restart();
+  }
+  if (command_ && std::holds_alternative<cmd::Pause>(*command_)) {
+    active_ = false;
+  }
+  if (command_ && std::holds_alternative<cmd::Resume>(*command_)) {
+    active_ = true;
+  }
   if (!active_)
     return;
   PlayerID current = game_.current_player();
-  bool turn_complete = false;
   switch (current) {
   case PlayerID::ONE:
-    turn_complete = update_player(*player_1_);
+    update_player(*player_1_);
     break;
 
   case PlayerID::TWO:
-    turn_complete = update_player(*player_2_);
+    update_player(*player_2_);
     break;
   }
 
@@ -37,31 +49,37 @@ void MatchController::update() {
     game_status_ = GameStatus::DRAW;
     active_ = false;
   }
-  if (turn_complete) {
-    game_.set_current_player(current == PlayerID::ONE ? PlayerID::TWO
-                                                      : PlayerID::ONE);
-    piece_placed_ = false;
-  }
 }
 
-bool MatchController::update_player(Player &player) {
-  if (!piece_placed_) {
+void MatchController::update_player(Player &player) {
+  if (!game_.piece_placed()) {
     std::optional<Cell> c = player.poll_cell();
 
     if (c.has_value()) {
-      if (game_.place_piece(*c))
-        piece_placed_ = true;
+      game_.place_piece(*c);
     }
   }
 
-  if (piece_placed_) {
+  if (game_.piece_placed()) {
     std::optional<Piece> p = player.poll_piece();
     if (p.has_value()) {
-      if (game_.give_hand(*p))
-        return true;
+      game_.give_hand(*p);
     }
   }
-  return false;
+}
+
+// Steps back half moves and pauses the game if its the engines turn
+void MatchController::undo() {
+  player_1_->cancel();
+  player_2_->cancel();
+
+  game_.piece_placed() ? game_.unplace_piece() : game_.ungive_hand();
+  if (!player_is_human()) {
+    active_ = false;
+  } else {
+
+    active_ = !game_.win() && !game_.draw();
+  }
 }
 
 void MatchController::start(const MatchConfig &config) {
@@ -77,9 +95,16 @@ std::unique_ptr<Player> MatchController::make_player(const Seat &seat,
                         },
                         [&](const EngineSeat &s) -> std::unique_ptr<Player> {
                           return std::make_unique<EnginePlayer>(
-                              game, s.engine_name, s.search_depth,
-                              s.time_limit);
+                              game, s.name, s.search_depth, s.time_limit);
                         },
                     },
                     seat);
 }
+
+const bool MatchController::player_is_human() {
+  const Seat &seat = game_.current_player() == PlayerID::ONE
+                         ? match_config_.player_1
+                         : match_config_.player_2;
+
+  return std::holds_alternative<HumanSeat>(seat);
+};

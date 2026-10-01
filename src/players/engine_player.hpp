@@ -36,7 +36,12 @@ private:
   std::mutex bestmove_mutex_; // bestmove_ is written from the reader thread
   std::vector<EngineOutput> engine_output_;
   TinyProcessLib::Process engine_;
-  bool searching_ = false;
+  // Idle: no search for this turn yet. Searching: "go" sent, bestmove not yet
+  // received. ResultReady: bestmove received, not fully played yet.
+  enum class SearchState { Idle, Searching, ResultReady };
+  SearchState state_ = SearchState::Idle;
+  int stale_bestmoves_ = 0; // bestmoves still due from cancelled searches
+  void start_search();
   std::string format_engine_input();
   std::string format_position();
 
@@ -45,4 +50,5 @@ public:
   ~EnginePlayer() { engine_.write("quit\n"); };
   std::optional<Cell> poll_cell() override;
   std::optional<Piece> poll_piece() override;
+  void cancel() override;
 };

@@ -7,13 +7,20 @@ Game::Game() {
   top_ = 0;
   winning_line_.fill(-1);
   current_player_ = PlayerID::ONE;
+  history_.fill({-1, -1});
 }
 
 bool Game::place_piece(Cell c) {
   if (board_[c] == -1 && hand_ >= 0) {
-    history_[top_++] = {c, hand_};
+    history_[top_].cell = c;
     board_[c] = hand_;
+    piece_placed_ = true;
     hand_ = -1;
+    if (check_win()) {
+      win_ = true;
+    } else if (check_draw()) {
+      draw_ = true;
+    }
     return true;
   }
   return false;
@@ -21,25 +28,47 @@ bool Game::place_piece(Cell c) {
 
 bool Game::give_hand(Piece p) {
   if (p >= 0 && avail_[p]) {
+    history_[top_++].hand = p;
     hand_ = p;
     avail_[p] = false;
+    piece_placed_ = false;
+    current_player_ =
+        current_player_ == PlayerID::ONE ? PlayerID::TWO : PlayerID::ONE;
     return true;
   }
   return false;
 }
 
+// history_[k] = {cell the previous piece was placed on, piece given at k}.
+// top_ is one past the last give, so a placement in progress lives in
+// history_[top_].cell.
 void Game::unplace_piece() {
-  Undo u = history_[top_ - 1];
-  board_[u.cell] = -1;
+  if (top_ <= 0 || !piece_placed_ || hand_ >= 0 || history_[top_].cell < 0)
+    return;
+  Cell c = history_[top_].cell;
+  history_[top_].cell = -1;
+  board_[c] = -1;
+  hand_ = history_[top_ - 1].hand;
+  piece_placed_ = false;
+  win_ = false;
+  draw_ = false;
+  winning_line_.fill(-1);
 }
 
 void Game::ungive_hand() {
-  Undo u = history_[--top_];
+  if (top_ <= 0 || piece_placed_ || hand_ < 0)
+    return;
+
+  --top_;
+  history_[top_].hand = -1;
+  current_player_ =
+      current_player_ == PlayerID::ONE ? PlayerID::TWO : PlayerID::ONE;
   avail_[hand_] = true;
-  hand_ = u.hand;
+  hand_ = -1;
+  piece_placed_ = true;
 }
 
-bool Game::draw() {
+bool Game::check_draw() {
   for (int i = 0; i < 16; ++i) {
     if (board_[i] < 0)
       return false;
@@ -48,7 +77,7 @@ bool Game::draw() {
   return true;
 }
 
-bool Game::win() {
+bool Game::check_win() {
   std::array<std::array<int, 4>, 10> lines = {{{0, 1, 2, 3},
                                                {4, 5, 6, 7},
                                                {8, 9, 10, 11},
@@ -84,3 +113,17 @@ bool Game::win() {
 
   return false;
 }
+
+void Game::restart() {
+
+  board_.fill(-1);
+  avail_.fill(true);
+  hand_ = -1;
+  top_ = 0;
+  winning_line_.fill(-1);
+  current_player_ = PlayerID::ONE;
+  piece_placed_ = true;
+  win_ = false;
+  draw_ = false;
+  history_.fill({-1, -1});
+};

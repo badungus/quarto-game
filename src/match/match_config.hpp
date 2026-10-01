@@ -3,11 +3,13 @@
 #include <variant>
 
 struct EngineSeat {
-  std::string engine_name;
+  std::string name;
   int search_depth;
   int time_limit;
 };
-struct HumanSeat {};
+struct HumanSeat {
+  std::string name;
+};
 
 using Seat = std::variant<HumanSeat, EngineSeat>;
 

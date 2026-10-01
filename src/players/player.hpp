@@ -11,4 +11,6 @@ public:
   virtual ~Player() = default;
   virtual std::optional<Cell> poll_cell() { return std::nullopt; }
   virtual std::optional<Piece> poll_piece() { return std::nullopt; }
+  // Drop any move in progress, e.g. because the position was undone.
+  virtual void cancel() {}
 };

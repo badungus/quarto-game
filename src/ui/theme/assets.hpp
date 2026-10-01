@@ -9,6 +9,14 @@ struct Assets {
   Texture2D pool_button_hover;
   Texture2D pool_button_armed;
   std::array<Texture2D, 16> pool_button_images;
+  Texture2D winning_cell;
+  Texture2D board_background;
+  Texture2D background;
+  Texture2D restart;
+  Texture2D undo;
+  Texture2D redo;
+  Texture2D pause;
+  Texture2D resume;
 
   // Must be called after InitWindow(), since textures need a GL context.
   void load();

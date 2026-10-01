@@ -17,6 +17,21 @@ void Assets::load() {
     pool_button_images[i] = LoadTexture(TextFormat(
         "%s../assets/images/pieces/piece%d.png", GetApplicationDirectory(), i));
   }
+  winning_cell = LoadTexture(TextFormat(
+      "%s../assets/images/board/winning_cell.png", GetApplicationDirectory()));
+  board_background =
+      LoadTexture(TextFormat("%s../assets/images/board/board_background.png",
+                             GetApplicationDirectory()));
+  restart = LoadTexture(TextFormat("%s../assets/images/buttons/restart.png",
+                                   GetApplicationDirectory()));
+  undo = LoadTexture(TextFormat("%s../assets/images/buttons/undo.png",
+                                GetApplicationDirectory()));
+  redo = LoadTexture(TextFormat("%s../assets/images/buttons/redo.png",
+                                GetApplicationDirectory()));
+  pause = LoadTexture(TextFormat("%s../assets/images/buttons/pause.png",
+                                 GetApplicationDirectory()));
+  resume = LoadTexture(TextFormat("%s../assets/images/buttons/resume.png",
+                                  GetApplicationDirectory()));
 }
 
 void Assets::unload() {

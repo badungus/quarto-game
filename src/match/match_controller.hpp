@@ -14,22 +14,24 @@ private:
   Game &game_;
   GameStatus game_status_;
   bool active_ = true;
-  bool piece_placed_ = true;
   std::optional<Command> &command_;
   MatchConfig match_config_;
   std::unique_ptr<Player> make_player(const Seat &seat, const Game &game);
   std::unique_ptr<Player> player_1_;
   std::unique_ptr<Player> player_2_;
   void start(const MatchConfig &config);
-  bool update_player(Player &player);
+  void update_player(Player &player);
+  void undo();
 
 public:
   MatchController(Game &game, MatchConfig &config,
                   std::optional<Command> &command)
-      : game_(game), command_(command) {
+      : game_(game), command_(command), match_config_(config) {
     start(config);
   };
   void update();
-  bool is_piece_placed() { return piece_placed_; }
-  bool active() { return active_; }
+  const bool active() const { return active_; }
+  const MatchConfig &match_config() const { return match_config_; }
+  const bool player_is_human();
+  void set_active(bool active) { active_ = active; }
 };

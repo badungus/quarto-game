@@ -12,11 +12,16 @@
 
 class GameScreen {
 private:
-  std::vector<Button> pool_buttons_;
-  std::vector<Button> board_buttons_;
   Game &game_;
   MatchController &match_controller_;
   const Assets &assets_;
+  std::vector<Button> pool_buttons_;
+  std::vector<Button> board_buttons_;
+  Button restart_;
+  Button undo_;
+  Button redo_;
+  Button pause_;
+  Button resume_;
 
 public:
   GameScreen(Game &game, MatchController &match_controller,
@@ -26,4 +31,6 @@ public:
   void draw_board();
   void draw_hand_slot();
   void draw_piece_pool();
+  void draw_player();
+  void draw_buttons();
 };

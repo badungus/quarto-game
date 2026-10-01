@@ -11,9 +11,8 @@ void Gui::run() {
 
   while (!WindowShouldClose()) {
     screen_.update(read_input());
-
-    BeginDrawing();
     ClearBackground(RAYWHITE);
+    BeginDrawing();
     screen_.draw();
     EndDrawing();
   }
