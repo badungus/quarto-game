@@ -2,6 +2,7 @@
 // whether moves come from input or search.
 #pragma once
 #include "../game/types.hpp"
+#include <array>
 #include <optional>
 #include <vector>
 
@@ -14,5 +15,5 @@ public:
   virtual std::optional<Piece> poll_piece() { return std::nullopt; }
   // Drop any move in progress, e.g. because the position was undone.
   virtual void cancel() {}
-  virtual std::vector<EngineInfo> engine_info() { return {}; }
+  virtual std::array<std::vector<EngineInfo>, 17> engine_info() { return {}; }
 };

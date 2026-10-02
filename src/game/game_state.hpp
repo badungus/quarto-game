@@ -40,4 +40,5 @@ public:
   const Board &board() const { return board_; }
   const PlayerID &current_player() const { return current_player_; }
   const bool piece_placed() const { return piece_placed_; }
+  const int top() const { return top_; }
 };

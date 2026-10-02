@@ -15,6 +15,11 @@ template <class... Ts> struct overloaded : Ts... {
 } // namespace
 
 void MatchController::update() {
+  // Refresh both every frame, also while paused or after undo/redo, so the
+  // views never draw an outdated copy.
+  engine_info_history_.player_1_history = player_1_->engine_info();
+  engine_info_history_.player_2_history = player_2_->engine_info();
+
   if (command_ && std::holds_alternative<cmd::Undo>(*command_)) {
     undo();
     return;
@@ -29,18 +34,17 @@ void MatchController::update() {
     active_ = true;
   } else if (command_ && std::holds_alternative<cmd::Redo>(*command_)) {
     redo();
+    return;
   } else if (!active_)
     return;
   PlayerID current = game_.current_player();
   switch (current) {
   case PlayerID::ONE:
     update_player(*player_1_);
-    engine_info_history_.player_1_history = player_1_->engine_info();
     break;
 
   case PlayerID::TWO:
     update_player(*player_2_);
-    engine_info_history_.player_2_history = player_2_->engine_info();
     break;
   }
 

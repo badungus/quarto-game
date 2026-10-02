@@ -40,7 +40,6 @@ void Screen::draw() {
 }
 
 void Screen::draw_navbar() {
-  ClearBackground(RAYWHITE);
   float s = ui_scale();
   Texture2D navbar = assets_.pool_button_background;
 

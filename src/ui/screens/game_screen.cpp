@@ -8,11 +8,23 @@
 #include "../layout.hpp"
 #include <array>
 #include <cstdint>
-#include <iostream>
 #include <optional>
 #include <raylib.h>
 #include <string>
 #include <variant>
+
+namespace {
+// An engine only searches on its own turns, so walk back from the current top
+// to its latest search at or before this position.
+const EngineInfo *
+latest_info(const std::array<std::vector<EngineInfo>, 17> &history, int top) {
+  for (int k = top; k >= 0; --k) {
+    if (!history[k].empty())
+      return &history[k].back();
+  }
+  return nullptr;
+}
+} // namespace
 
 GameScreen::GameScreen(Game &game, MatchController &match_controller,
                        const Assets &assets)
@@ -232,12 +244,12 @@ void GameScreen::draw_player() {
   } else if (std::holds_alternative<EngineSeat>(
                  match_controller_.match_config().player_1)) {
 
-    std::vector<EngineInfo> player_1_history =
-        match_controller_.engine_info().player_1_history;
-    if (!player_1_history.empty()) {
-      int16_t eval = player_1_history.back().score;
-      int depth = player_1_history.back().depth;
-      std::string move = player_1_history.back().move;
+    const EngineInfo *info = latest_info(
+        match_controller_.engine_info().player_1_history, game_.top());
+    if (info) {
+      int16_t eval = info->score;
+      int depth = info->depth;
+      std::string move = info->move;
       float evalbar_height = EVALBAR_HEIGHT * ((eval + WIN) / (2.0f * WIN));
       Rectangle dest_eval_1 = {
           EVALBAR_1_X * s, ((EVALBAR_Y + EVALBAR_HEIGHT - evalbar_height)) * s,
@@ -251,13 +263,13 @@ void GameScreen::draw_player() {
   } else if (std::holds_alternative<EngineSeat>(
                  match_controller_.match_config().player_2)) {
 
-    std::vector<EngineInfo> player_2_history =
-        match_controller_.engine_info().player_2_history;
-    if (!player_2_history.empty()) {
+    const EngineInfo *info = latest_info(
+        match_controller_.engine_info().player_2_history, game_.top());
+    if (info) {
+      int16_t eval = info->score;
+      int depth = info->depth;
+      std::string move = info->move;
 
-      int16_t eval = player_2_history.back().score;
-      int depth = player_2_history.back().depth;
-      std::string move = player_2_history.back().move;
       float evalbar_height = EVALBAR_HEIGHT * ((eval + WIN) / (2.0f * WIN));
       Rectangle dest_eval_2 = {
           EVALBAR_2_X * s, ((EVALBAR_Y + EVALBAR_HEIGHT - evalbar_height)) * s,

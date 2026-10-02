@@ -24,8 +24,8 @@ struct EngineInfo {
 };
 
 struct EngineInfoHistory {
-  std::vector<EngineInfo> player_1_history;
-  std::vector<EngineInfo> player_2_history;
+  std::array<std::vector<EngineInfo>, 17> player_1_history;
+  std::array<std::vector<EngineInfo>, 17> player_2_history;
 };
 
 constexpr int16_t WIN = 10000;
