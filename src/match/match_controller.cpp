@@ -35,10 +35,12 @@ void MatchController::update() {
   switch (current) {
   case PlayerID::ONE:
     update_player(*player_1_);
+    engine_info_history_.player_1_history = player_1_->engine_info();
     break;
 
   case PlayerID::TWO:
     update_player(*player_2_);
+    engine_info_history_.player_2_history = player_2_->engine_info();
     break;
   }
 

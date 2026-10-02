@@ -27,6 +27,10 @@ Result Search::search(Position &pos, int depth, InfoFn cb) {
         stop_ = true;
         best.score = WIN;
       }
+      if (best.score <= -WIN + i) {
+        stop_ = true;
+        best.score = -WIN;
+      }
       if (cb)
         cb({i, best});
     }

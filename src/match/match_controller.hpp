@@ -19,6 +19,7 @@ private:
   std::unique_ptr<Player> make_player(const Seat &seat, const Game &game);
   std::unique_ptr<Player> player_1_;
   std::unique_ptr<Player> player_2_;
+  EngineInfoHistory engine_info_history_;
   void start(const MatchConfig &config);
   void update_player(Player &player);
   void undo();
@@ -34,5 +35,6 @@ public:
   const bool active() const { return active_; }
   const MatchConfig &match_config() const { return match_config_; }
   const bool player_is_human();
+  const EngineInfoHistory &engine_info() { return engine_info_history_; }
   void set_active(bool active) { active_ = active; }
 };

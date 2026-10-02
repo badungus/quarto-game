@@ -7,8 +7,11 @@
 #include "../../match/match_controller.hpp"
 #include "../layout.hpp"
 #include <array>
+#include <cstdint>
+#include <iostream>
 #include <optional>
 #include <raylib.h>
+#include <string>
 #include <variant>
 
 GameScreen::GameScreen(Game &game, MatchController &match_controller,
@@ -44,8 +47,10 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
             assets.pool_button_background, assets.pool_button_hover,
             assets.pool_button_armed, &assets.redo) {
 
-  for (int col = 0; col < POOL_COLS; ++col) {
-    for (int row = 0; row < POOL_ROWS; ++row) {
+  // Row-major, so pool_buttons_[i] sits at col i % POOL_COLS, row i / POOL_COLS
+  // and shows piece i.
+  for (int row = 0; row < POOL_ROWS; ++row) {
+    for (int col = 0; col < POOL_COLS; ++col) {
       pool_buttons_.emplace_back(
           Rectangle{POOL_X + col * POOL_TILE, POOL_Y + row * POOL_TILE,
                     POOL_TILE, POOL_TILE},
@@ -91,8 +96,7 @@ std::optional<Command> GameScreen::update(const Input &in) {
     pool_buttons_[i].set_enabled(avail && game_.piece_placed() &&
                                  match_controller_.active() &&
                                  match_controller_.player_is_human());
-    if (!avail) {
-
+    if (!avail && i != game_.hand()) {
       pool_buttons_[i].set_content(std::monostate{});
     } else {
       pool_buttons_[i].set_content(&assets_.pool_button_images[i]);
@@ -121,6 +125,23 @@ void GameScreen::draw_piece_pool() {
   for (int i = 0; i < 16; ++i) {
     pool_buttons_[i].draw();
   }
+  Piece h = game_.hand();
+  if (h < 0)
+    return;
+  float s = ui_scale();
+  int col = h % POOL_COLS;
+  int row = h / POOL_COLS;
+  const Texture2D &tex = assets_.winning_cell;
+  Rectangle dest = {(POOL_X + col * POOL_TILE) * s,
+                    (POOL_Y + row * POOL_TILE) * s, POOL_TILE * s,
+                    POOL_TILE * s};
+  NPatchInfo patch = {{0, 0, (float)tex.width, (float)tex.height},
+                      BORDER,
+                      BORDER,
+                      BORDER,
+                      BORDER,
+                      NPATCH_NINE_PATCH};
+  DrawTextureNPatch(tex, patch, dest, {0, 0}, 0.0f, WHITE);
 }
 
 void GameScreen::draw_board() {
@@ -210,12 +231,39 @@ void GameScreen::draw_player() {
           match_controller_.match_config().player_1)) {
   } else if (std::holds_alternative<EngineSeat>(
                  match_controller_.match_config().player_1)) {
+
+    std::vector<EngineInfo> player_1_history =
+        match_controller_.engine_info().player_1_history;
+    if (!player_1_history.empty()) {
+      int16_t eval = player_1_history.back().score;
+      int depth = player_1_history.back().depth;
+      std::string move = player_1_history.back().move;
+      float evalbar_height = EVALBAR_HEIGHT * ((eval + WIN) / (2.0f * WIN));
+      Rectangle dest_eval_1 = {
+          EVALBAR_1_X * s, ((EVALBAR_Y + EVALBAR_HEIGHT - evalbar_height)) * s,
+          EVALBAR_WIDTH * s, evalbar_height * s};
+      DrawTextureNPatch(background, patch, dest_eval_1, {0, 0}, 0.0f, WHITE);
+    }
   };
 
   if (std::holds_alternative<HumanSeat>(
           match_controller_.match_config().player_2)) {
   } else if (std::holds_alternative<EngineSeat>(
                  match_controller_.match_config().player_2)) {
+
+    std::vector<EngineInfo> player_2_history =
+        match_controller_.engine_info().player_2_history;
+    if (!player_2_history.empty()) {
+
+      int16_t eval = player_2_history.back().score;
+      int depth = player_2_history.back().depth;
+      std::string move = player_2_history.back().move;
+      float evalbar_height = EVALBAR_HEIGHT * ((eval + WIN) / (2.0f * WIN));
+      Rectangle dest_eval_2 = {
+          EVALBAR_2_X * s, ((EVALBAR_Y + EVALBAR_HEIGHT - evalbar_height)) * s,
+          EVALBAR_WIDTH * s, evalbar_height * s};
+      DrawTextureNPatch(background, patch, dest_eval_2, {0, 0}, 0.0f, WHITE);
+    }
   };
 };
 

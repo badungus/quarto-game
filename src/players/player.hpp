@@ -14,5 +14,5 @@ public:
   virtual std::optional<Piece> poll_piece() { return std::nullopt; }
   // Drop any move in progress, e.g. because the position was undone.
   virtual void cancel() {}
-  virtual std::vector<EngineOutput> engine_output() { return {}; }
+  virtual std::vector<EngineInfo> engine_info() { return {}; }
 };

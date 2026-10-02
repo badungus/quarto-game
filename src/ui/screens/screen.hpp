@@ -15,11 +15,13 @@ class Screen {
 private:
   Game game;
   std::optional<Command> command;
-  MatchConfig match_config{EngineSeat{"Thor", 16, 1000},
-                           EngineSeat{"Thor", 16, 1000}};
+  MatchConfig match_config{HumanSeat{"Player"}, EngineSeat{"Thor", 16, 1000}};
   MatchController match_controller{game, match_config, command};
   GameScreen game_screen_;
   ScreenId current_ = ScreenId::Game;
+  const Assets &assets_;
+
+  void draw_navbar();
 
 public:
   Screen(const Assets &assets);

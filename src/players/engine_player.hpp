@@ -24,11 +24,11 @@ private:
   int movetime_;
   std::string buffer_;
   void parse_engine_output(std::string input);
-  std::vector<EngineOutput> engine_info_;
+  std::vector<EngineInfo> engine_info_;
   OptionalMove parse_move(std::string move_string);
   OptionalMove bestmove_;
-  std::mutex bestmove_mutex_; // bestmove_ is written from the reader thread
-  std::vector<EngineOutput> engine_output_;
+  // bestmove_ and engine_info_ are written from the reader thread
+  std::mutex bestmove_mutex_;
   TinyProcessLib::Process engine_;
   // Idle: no search for this turn yet. Searching: "go" sent, bestmove not yet
   // received. ResultReady: bestmove received, not fully played yet.
@@ -45,4 +45,5 @@ public:
   std::optional<Cell> poll_cell() override;
   std::optional<Piece> poll_piece() override;
   void cancel() override;
+  std::vector<EngineInfo> engine_info() override;
 };

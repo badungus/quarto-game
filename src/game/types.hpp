@@ -2,6 +2,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 using Piece = std::int8_t;
 using Board = std::array<Piece, 16>;
@@ -16,8 +17,16 @@ struct Undo {
   Piece hand;
 };
 
-struct EngineOutput {
+struct EngineInfo {
   int depth;
-  uint32_t score;
+  int16_t score;
   std::string move;
 };
+
+struct EngineInfoHistory {
+  std::vector<EngineInfo> player_1_history;
+  std::vector<EngineInfo> player_2_history;
+};
+
+constexpr int16_t WIN = 10000;
+constexpr int16_t INF = 32000;

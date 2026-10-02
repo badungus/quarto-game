@@ -6,7 +6,6 @@
 #include "process.hpp"
 #include <algorithm>
 #include <cctype>
-#include <cstdint>
 #include <mutex>
 #include <optional>
 #include <raylib.h>
@@ -44,6 +43,7 @@ void EnginePlayer::start_search() {
   // Drop anything left over from the previous search before starting a new
   // one, otherwise a stale cell gets played immediately.
   bestmove_ = {};
+  engine_info_.clear();
   engine_.write(format_engine_input());
   state_ = SearchState::Searching;
 }
@@ -83,6 +83,11 @@ void EnginePlayer::cancel() {
   state_ = SearchState::Idle;
 }
 
+std::vector<EngineInfo> EnginePlayer::engine_info() {
+  std::lock_guard<std::mutex> lock(bestmove_mutex_);
+  return engine_info_;
+}
+
 void EnginePlayer::parse_engine_output(std::string line) {
 
   std::vector<std::string> tokens;
@@ -100,7 +105,7 @@ void EnginePlayer::parse_engine_output(std::string line) {
   if (tokens[0] == "info") {
     // parse depth, score, move
 
-    EngineOutput engine_output{};
+    EngineInfo engine_output{};
 
     size_t depth_idx =
         std::find(tokens.begin(), tokens.end(), "depth") - tokens.begin();
@@ -120,15 +125,16 @@ void EnginePlayer::parse_engine_output(std::string line) {
     size_t score_idx =
         std::find(tokens.begin(), tokens.end(), "score") - tokens.begin();
     if (score_idx < tokens.size()) {
+      static const std::string none;
+      const std::string &tok =
+          score_idx + 1 < tokens.size() ? tokens[score_idx + 1] : none;
+      size_t start = (!tok.empty() && tok[0] == '-') ? 1 : 0; // allow sign
       bool is_number =
-          score_idx + 1 < tokens.size() && !tokens[score_idx + 1].empty() &&
-          tokens[score_idx + 1].size() <= 9 && // fits in an int for stoi
-          std::all_of(tokens[score_idx + 1].begin(),
-                      tokens[score_idx + 1].end(),
+          tok.size() > start && tok.size() <= 9 && // fits in an int for stoi
+          std::all_of(tok.begin() + start, tok.end(),
                       [](unsigned char c) { return std::isdigit(c); });
       if (is_number) {
-        uint32_t score = std::stoi(tokens[score_idx + 1]);
-        engine_output.score = score;
+        engine_output.score = std::stoi(tok);
       }
     };
 
@@ -137,7 +143,8 @@ void EnginePlayer::parse_engine_output(std::string line) {
     if (move_idx + 1 < tokens.size()) {
       engine_output.move = tokens[move_idx + 1];
     };
-    engine_output_.push_back(engine_output);
+    std::lock_guard<std::mutex> lock(bestmove_mutex_);
+    engine_info_.push_back(engine_output);
 
   } else if (tokens[0] == "bestmove" && tokens.size() >= 2) {
     if (tokens.size() > 1 &&
