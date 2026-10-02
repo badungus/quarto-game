@@ -1,11 +1,12 @@
 // game_screen.cpp - Implements GameScreen layout, input routing and reaction to
 // match events.
 #include "game_screen.hpp"
-#include "../../game/types.hpp"
-#include "../../match/command.hpp"
-#include "../../match/match_config.hpp"
-#include "../../match/match_controller.hpp"
-#include "../layout.hpp"
+#include "command.hpp"
+#include "game_state.hpp"
+#include "layout.hpp"
+#include "match_config.hpp"
+#include "match_controller.hpp"
+#include "types.hpp"
 #include <array>
 #include <cstdint>
 #include <optional>

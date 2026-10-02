@@ -1,12 +1,12 @@
 // game_screen.hpp - Declares GameScreen: composes all game views and turns
 // input into Commands.
 #pragma once
-#include "../../game/game_state.hpp"
-#include "../../match/command.hpp"
-#include "../../match/match_controller.hpp"
-#include "../input.hpp"
-#include "../theme/assets.hpp"
-#include "../widgets/button.hpp"
+#include "game_state.hpp"
+#include "command.hpp"
+#include "match_controller.hpp"
+#include "input.hpp"
+#include "assets.hpp"
+#include "button.hpp"
 #include <optional>
 #include <vector>
 

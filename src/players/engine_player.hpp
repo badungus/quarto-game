@@ -2,8 +2,8 @@
 // its chosen option values.
 #pragma once
 
-#include "../game/game_state.hpp"
-#include "../game/types.hpp"
+#include "game_state.hpp"
+#include "types.hpp"
 #include "player.hpp"
 #include "process.hpp"
 #include <array>

@@ -1,8 +1,8 @@
 // engine_player.cpp - Implements EnginePlayer: builds SearchRequests from the
 // current GameState.
 #include "engine_player.hpp"
-#include "../game/game_state.hpp"
-#include "../game/types.hpp"
+#include "game_state.hpp"
+#include "types.hpp"
 #include "process.hpp"
 #include <algorithm>
 #include <cctype>

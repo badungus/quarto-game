@@ -1,8 +1,8 @@
 // human_player.hpp - Declares HumanPlayer, whose moves are supplied by UI input
 // through the MatchController.
 #pragma once
-#include "../game/types.hpp"
-#include "../match/command.hpp"
+#include "types.hpp"
+#include "command.hpp"
 #include "player.hpp"
 #include <optional>
 

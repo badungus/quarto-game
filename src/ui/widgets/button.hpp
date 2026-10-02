@@ -1,6 +1,6 @@
 // button.hpp - Declares the immediate-mode Button widget (normal, hover).
 #pragma once
-#include "../input.hpp"
+#include "input.hpp"
 #include <raylib.h>
 #include <string>
 #include <variant>

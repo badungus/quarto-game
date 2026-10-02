@@ -1,5 +1,5 @@
-#include "game/game_state.hpp"
-#include "ui/app.hpp"
+#include "game_state.hpp"
+#include "app.hpp"
 
 int main() {
   Game game;

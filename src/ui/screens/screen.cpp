@@ -1,11 +1,12 @@
 // screen.cpp - Implements Screen switching.
 #include "screen.hpp"
-#include "../layout.hpp"
+#include "layout.hpp"
 #include "raylib.h"
 #include <optional>
 
 Screen::Screen(const Assets &assets)
-    : game_screen_(game, match_controller, assets), assets_(assets) {};
+    : main_menu_(game, match_controller, assets),
+      game_screen_(game, match_controller, assets), assets_(assets) {};
 
 void Screen::update(const Input &in) {
   switch (current_) {

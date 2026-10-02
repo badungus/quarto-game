@@ -1,7 +1,7 @@
 // player.hpp - Player interface shared by humans and engines: name, kind, and
 // whether moves come from input or search.
 #pragma once
-#include "../game/types.hpp"
+#include "types.hpp"
 #include <array>
 #include <optional>
 #include <vector>

@@ -38,6 +38,7 @@ add_executable(quarto
     src/ui/app.cpp
     src/ui/input.cpp
     src/ui/screens/game_screen.cpp
+    src/ui/screens/main_menu_screen.cpp
     src/ui/screens/screen.cpp
     src/ui/widgets/button.cpp
     src/ui/theme/assets.cpp
@@ -46,7 +47,17 @@ add_executable(quarto
     src/players/engine_player.cpp
 )
 
-target_include_directories(quarto PRIVATE include)
+target_include_directories(quarto PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+    # Lets the sources include project headers by file name only.
+    ${PROJECT_SOURCE_DIR}/src/game
+    ${PROJECT_SOURCE_DIR}/src/match
+    ${PROJECT_SOURCE_DIR}/src/players
+    ${PROJECT_SOURCE_DIR}/src/ui
+    ${PROJECT_SOURCE_DIR}/src/ui/screens
+    ${PROJECT_SOURCE_DIR}/src/ui/theme
+    ${PROJECT_SOURCE_DIR}/src/ui/widgets
+)
 
 target_link_libraries(quarto PRIVATE raylib tiny-process-library::tiny-process-library)
 

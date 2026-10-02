@@ -1,7 +1,7 @@
 #pragma once
 
-#include "screens/screen.hpp"
-#include "theme/assets.hpp"
+#include "screen.hpp"
+#include "assets.hpp"
 
 class Gui {
 public:

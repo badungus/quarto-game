@@ -1,6 +1,6 @@
 // button.cpp - Implements Button drawing and click handling.
 #include "button.hpp"
-#include "../layout.hpp"
+#include "layout.hpp"
 #include <raylib.h>
 #include <string>
 #include <variant>

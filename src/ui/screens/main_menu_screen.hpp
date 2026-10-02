@@ -2,10 +2,11 @@
 // Match, Quit.
 
 #pragma once
-#include "../../game/game_state.hpp"
-#include "../input.hpp"
-#include "../theme/assets.hpp"
-#include "../widgets/button.hpp"
+#include "game_state.hpp"
+#include "match_controller.hpp"
+#include "input.hpp"
+#include "assets.hpp"
+#include "button.hpp"
 #include <vector>
 
 class MainMenu {
@@ -14,7 +15,7 @@ private:
   Game &game_;
 
 public:
-  MainMenu(Game &game, const Assets &assets);
+  MainMenu(Game &game, MatchController &match_controller, const Assets &assets);
   void update(const Input &in);
   void draw_menu_buttons();
 };

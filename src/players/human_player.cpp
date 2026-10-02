@@ -1,6 +1,6 @@
 // human_player.cpp - Implements HumanPlayer.
 #include "human_player.hpp"
-#include "../game/types.hpp"
+#include "types.hpp"
 #include <optional>
 
 std::optional<Cell> HumanPlayer::poll_cell() {

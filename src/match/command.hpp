@@ -1,6 +1,6 @@
 // command.hpp - Command variant for everything that changes a match: SelectCell, SelectGive, Undo, Redo, JumpTo, NewGame, Pause, Resume, Step.
 #pragma once
-#include "../game/types.hpp"
+#include "types.hpp"
 #include "match_config.hpp"
 #include <variant>
 

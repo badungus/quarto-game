@@ -1,8 +1,8 @@
 // match_controller.hpp - Declares MatchController: owns GameState, History and
 // two Players; applies Commands and drives turns.
 #pragma once
-#include "../game/game_state.hpp"
-#include "../players/player.hpp"
+#include "game_state.hpp"
+#include "player.hpp"
 #include "command.hpp"
 #include "match_config.hpp"
 #include <memory>

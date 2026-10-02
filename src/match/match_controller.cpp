@@ -1,10 +1,10 @@
 // match_controller.cpp - Implements turn flow, human half-move buffering,
 // engine job dispatch and match events for views.
 #include "match_controller.hpp"
-#include "../game/game_state.hpp"
-#include "../game/types.hpp"
-#include "../players/engine_player.hpp"
-#include "../players/human_player.hpp"
+#include "game_state.hpp"
+#include "types.hpp"
+#include "engine_player.hpp"
+#include "human_player.hpp"
 #include <optional>
 #include <variant>
 
@@ -30,6 +30,7 @@ void MatchController::update() {
     active_ = true;
   } else if (command_ && std::holds_alternative<cmd::Pause>(*command_)) {
     active_ = false;
+    return;
   } else if (command_ && std::holds_alternative<cmd::Resume>(*command_)) {
     active_ = true;
   } else if (command_ && std::holds_alternative<cmd::Redo>(*command_)) {
