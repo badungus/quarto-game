@@ -27,6 +27,8 @@ public:
   bool give_hand(Piece p);
   void unplace_piece();
   void ungive_hand();
+  void redo_piece();
+  void redo_hand();
   void set_current_player(PlayerID current) { current_player_ = current; }
   void restart();
 

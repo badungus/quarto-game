@@ -13,6 +13,7 @@ Game::Game() {
 bool Game::place_piece(Cell c) {
   if (board_[c] == -1 && hand_ >= 0) {
     history_[top_].cell = c;
+    history_[top_].hand = -1; // a new move ends the redo history
     board_[c] = hand_;
     piece_placed_ = true;
     hand_ = -1;
@@ -27,16 +28,16 @@ bool Game::place_piece(Cell c) {
 }
 
 bool Game::give_hand(Piece p) {
-  if (p >= 0 && avail_[p]) {
-    history_[top_++].hand = p;
-    hand_ = p;
-    avail_[p] = false;
-    piece_placed_ = false;
-    current_player_ =
-        current_player_ == PlayerID::ONE ? PlayerID::TWO : PlayerID::ONE;
-    return true;
-  }
-  return false;
+  if (p < 0 || !avail_[p])
+    return false;
+  history_[top_++].hand = p;
+  history_[top_].cell = -1; // a new move ends the redo history
+  hand_ = p;
+  avail_[p] = false;
+  piece_placed_ = false;
+  current_player_ =
+      current_player_ == PlayerID::ONE ? PlayerID::TWO : PlayerID::ONE;
+  return true;
 }
 
 // history_[k] = {cell the previous piece was placed on, piece given at k}.
@@ -46,7 +47,6 @@ void Game::unplace_piece() {
   if (top_ <= 0 || !piece_placed_ || hand_ >= 0 || history_[top_].cell < 0)
     return;
   Cell c = history_[top_].cell;
-  history_[top_].cell = -1;
   board_[c] = -1;
   hand_ = history_[top_ - 1].hand;
   piece_placed_ = false;
@@ -60,12 +60,29 @@ void Game::ungive_hand() {
     return;
 
   --top_;
-  history_[top_].hand = -1;
   current_player_ =
       current_player_ == PlayerID::ONE ? PlayerID::TWO : PlayerID::ONE;
   avail_[hand_] = true;
   hand_ = -1;
   piece_placed_ = true;
+}
+
+// Redo replays the stored move, then restores the next entry that the move
+// cleared as if it were new.
+void Game::redo_piece() {
+  Piece next = history_[top_].hand;
+  if (piece_placed_ || history_[top_].cell < 0 ||
+      !place_piece(history_[top_].cell))
+    return;
+  history_[top_].hand = next;
+}
+
+void Game::redo_hand() {
+  if (!piece_placed_ || history_[top_].hand < 0)
+    return;
+  Cell next = history_[top_ + 1].cell;
+  give_hand(history_[top_].hand);
+  history_[top_].cell = next;
 }
 
 bool Game::check_draw() {

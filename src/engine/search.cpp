@@ -22,12 +22,11 @@ Result Search::search(Position &pos, int depth, InfoFn cb) {
     if (!stop_) {
       std::uniform_int_distribution<> dist(
           0, static_cast<int>(best_moves.size()) - 1);
-      best = best_moves[0];
+      best = best_moves[dist(gen)]; // one of the best moves
       if (best.score >= WIN - i) {
         stop_ = true;
         best.score = WIN;
       }
-      // best = best_moves[dist(gen)]; // one of the best moves
       if (cb)
         cb({i, best});
     }

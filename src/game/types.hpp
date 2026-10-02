@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <string>
 
 using Piece = std::int8_t;
 using Board = std::array<Piece, 16>;
@@ -13,4 +14,10 @@ struct Move {
 struct Undo {
   Cell cell;
   Piece hand;
+};
+
+struct EngineOutput {
+  int depth;
+  uint32_t score;
+  std::string move;
 };

@@ -93,7 +93,12 @@ void EnginePlayer::parse_engine_output(std::string line) {
     tokens.push_back(token);
   }
 
+  if (tokens.empty()) {
+    return;
+  }
+
   if (tokens[0] == "info") {
+    // parse depth, score, move
 
     EngineOutput engine_output{};
 
@@ -122,32 +127,34 @@ void EnginePlayer::parse_engine_output(std::string line) {
                       tokens[score_idx + 1].end(),
                       [](unsigned char c) { return std::isdigit(c); });
       if (is_number) {
-        uint32_t score = std::stoi(tokens[depth_idx + 1]);
+        uint32_t score = std::stoi(tokens[score_idx + 1]);
         engine_output.score = score;
       }
+    };
 
-      size_t move_idx =
-          std::find(tokens.begin(), tokens.end(), "move") - tokens.begin();
-      if (move_idx < tokens.size()) {
-        engine_output.move = tokens[move_idx + 1];
-      };
-      engine_output_.push_back(engine_output);
-    }
-  };
+    size_t move_idx =
+        std::find(tokens.begin(), tokens.end(), "move") - tokens.begin();
+    if (move_idx + 1 < tokens.size()) {
+      engine_output.move = tokens[move_idx + 1];
+    };
+    engine_output_.push_back(engine_output);
 
-  if (tokens[0] == "bestmove") {
-
-    if (std::regex_match(
+  } else if (tokens[0] == "bestmove" && tokens.size() >= 2) {
+    if (tokens.size() > 1 &&
+        std::regex_match(
             tokens[1], std::regex(R"(([a-dA-D][1-4]|-)\|([a-zA-Z]{4}|-|#))"))) {
+
       std::lock_guard<std::mutex> lock(bestmove_mutex_);
+
       if (stale_bestmoves_ > 0) {
         --stale_bestmoves_;
         return;
       }
+
       bestmove_ = parse_move(tokens[1]);
       state_ = SearchState::ResultReady;
     }
-  };
+  }
 };
 
 OptionalMove EnginePlayer::parse_move(std::string move_string) {

@@ -19,16 +19,17 @@ void MatchController::update() {
     undo();
     return;
   } else if (command_ && std::holds_alternative<cmd::NewGame>(*command_)) {
-    active_ = true;
+    player_1_->cancel();
+    player_2_->cancel();
     game_.restart();
-  }
-  if (command_ && std::holds_alternative<cmd::Pause>(*command_)) {
-    active_ = false;
-  }
-  if (command_ && std::holds_alternative<cmd::Resume>(*command_)) {
     active_ = true;
-  }
-  if (!active_)
+  } else if (command_ && std::holds_alternative<cmd::Pause>(*command_)) {
+    active_ = false;
+  } else if (command_ && std::holds_alternative<cmd::Resume>(*command_)) {
+    active_ = true;
+  } else if (command_ && std::holds_alternative<cmd::Redo>(*command_)) {
+    redo();
+  } else if (!active_)
     return;
   PlayerID current = game_.current_player();
   switch (current) {
@@ -81,6 +82,19 @@ void MatchController::undo() {
     active_ = !game_.win() && !game_.draw();
   }
 }
+
+void MatchController::redo() {
+  player_1_->cancel();
+  player_2_->cancel();
+
+  game_.piece_placed() ? game_.redo_hand() : game_.redo_piece();
+  if (!player_is_human()) {
+    active_ = false;
+  } else {
+
+    active_ = !game_.win() && !game_.draw();
+  }
+};
 
 void MatchController::start(const MatchConfig &config) {
   player_1_ = make_player(config.player_1, game_);

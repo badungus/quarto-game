@@ -11,12 +11,6 @@
 #include <string>
 #include <vector>
 
-struct EngineOutput {
-  int depth;
-  uint32_t score;
-  std::string move;
-};
-
 struct OptionalMove {
   std::optional<Cell> cell;
   std::optional<Piece> give;

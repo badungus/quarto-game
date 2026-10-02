@@ -22,6 +22,7 @@ private:
   void start(const MatchConfig &config);
   void update_player(Player &player);
   void undo();
+  void redo();
 
 public:
   MatchController(Game &game, MatchConfig &config,
