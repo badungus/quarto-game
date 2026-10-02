@@ -1,1 +1,0 @@
-// panel.cpp - Implements Panel.

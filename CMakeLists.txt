@@ -27,7 +27,9 @@ FetchContent_MakeAvailable(raylib tiny-process-library)
 # its own directory, and assets are loaded relative to it (../assets).
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-add_subdirectory(src/engine)
+add_subdirectory(src/engine/thor)
+
+add_subdirectory(src/engine/odin)
 
 add_executable(quarto
     src/main.cpp
@@ -48,4 +50,4 @@ target_include_directories(quarto PRIVATE include)
 target_link_libraries(quarto PRIVATE raylib tiny-process-library::tiny-process-library)
 
 # Building the GUI also builds the engine it launches.
-add_dependencies(quarto quarto-engine)
+add_dependencies(quarto thor odin)

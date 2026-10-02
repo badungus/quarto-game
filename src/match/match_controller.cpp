@@ -111,7 +111,8 @@ std::unique_ptr<Player> MatchController::make_player(const Seat &seat,
                         },
                         [&](const EngineSeat &s) -> std::unique_ptr<Player> {
                           return std::make_unique<EnginePlayer>(
-                              game, s.name, s.search_depth, s.time_limit);
+                              game, s.name, s.executable, s.search_depth,
+                              s.time_limit);
                         },
                     },
                     seat);

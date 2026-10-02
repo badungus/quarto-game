@@ -17,7 +17,7 @@ namespace quarto {
 // from the deepest *completed* depth. `cb` (may be empty) is called once per
 // completed depth.
 //
-// Returns {cell, give}:
+// Returns {score, move}, where move is {cell, give}:
 //   cell  0..15 board index (row * 4 + col) where the held piece is placed, or
 //         -1 at game start (give-only move)
 //   give  the piece handed to the opponent, or -1 if the game ends

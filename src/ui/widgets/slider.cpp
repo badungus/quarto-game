@@ -1,1 +1,0 @@
-// slider.cpp - Implements Slider.

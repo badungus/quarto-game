@@ -14,14 +14,14 @@
 #include <string>
 #include <vector>
 
-EnginePlayer::EnginePlayer(const Game &game, std::string name, int depth,
-                           int movetime)
+EnginePlayer::EnginePlayer(const Game &game, std::string name,
+                           std::string executable, int depth, int movetime)
     : game_(game), name_(name), depth_(depth), movetime_(movetime), buffer_(""),
       // The engine sits next to the GUI executable, wherever that was launched
       // from. Passed as an argument list so a path with spaces stays intact.
       engine_(
           std::vector<std::string>{std::string(GetApplicationDirectory()) +
-                                   "quarto-engine"},
+                                   executable},
           "",
           [&](const char *bytes, size_t n) {
             buffer_.append(bytes, n);

@@ -4,6 +4,7 @@
 
 struct EngineSeat {
   std::string name;
+  std::string executable;
   int search_depth;
   int time_limit;
 };

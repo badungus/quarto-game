@@ -15,7 +15,8 @@ class Screen {
 private:
   Game game;
   std::optional<Command> command;
-  MatchConfig match_config{HumanSeat{"Player"}, EngineSeat{"Thor", 16, 1000}};
+  MatchConfig match_config{HumanSeat{"Player"},
+                           EngineSeat{"Thor", "thor", 16, 1000}};
   MatchController match_controller{game, match_config, command};
   GameScreen game_screen_;
   ScreenId current_ = ScreenId::Game;

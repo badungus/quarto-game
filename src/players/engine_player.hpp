@@ -40,7 +40,8 @@ private:
   std::string format_position();
 
 public:
-  EnginePlayer(const Game &game, std::string name, int depth, int movetime);
+  EnginePlayer(const Game &game, std::string name, std::string executable,
+               int depth, int movetime);
   ~EnginePlayer() { engine_.write("quit\n"); };
   std::optional<Cell> poll_cell() override;
   std::optional<Piece> poll_piece() override;
