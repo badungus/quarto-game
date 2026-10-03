@@ -1,13 +1,12 @@
 // game_screen.hpp - Declares GameScreen: composes all game views and turns
 // input into Commands.
 #pragma once
-#include "game_state.hpp"
-#include "command.hpp"
-#include "match_controller.hpp"
-#include "input.hpp"
 #include "assets.hpp"
 #include "button.hpp"
-#include <optional>
+#include "game_state.hpp"
+#include "input.hpp"
+#include "match_controller.hpp"
+#include "nav.hpp"
 #include <vector>
 
 class GameScreen {
@@ -26,7 +25,7 @@ private:
 public:
   GameScreen(Game &game, MatchController &match_controller,
              const Assets &assets);
-  std::optional<Command> update(const Input &in);
+  Action update(const Input &in);
   void draw_analysis();
   void draw_board();
   void draw_hand_slot();

@@ -41,6 +41,7 @@ add_executable(quarto
     src/ui/screens/main_menu_screen.cpp
     src/ui/screens/screen.cpp
     src/ui/widgets/button.cpp
+    src/ui/widgets/dropdown.cpp
     src/ui/theme/assets.cpp
     src/match/match_controller.cpp
     src/players/human_player.cpp

@@ -1,28 +1,28 @@
 // screen.hpp - Declares Screen: owns the screens, tracks which one is active
 // and forwards update(input) and draw() to it.
 #pragma once
-#include "game_state.hpp"
+#include "assets.hpp"
 #include "command.hpp"
-#include "match_controller.hpp"
+#include "game_screen.hpp"
+#include "game_state.hpp"
 #include "input.hpp"
 #include "main_menu_screen.hpp"
-#include "assets.hpp"
-#include "game_screen.hpp"
+#include "match_controller.hpp"
+#include "nav.hpp"
 #include <optional>
-
-enum class ScreenId { Menu, Game, Result };
 
 class Screen {
 private:
   Game game;
   std::optional<Command> command;
   MatchConfig match_config{HumanSeat{"Player"},
-                           EngineSeat{"Thor", "thor", 16, 1000}};
+                           EngineSeat{"THOR", "thor", 16, 1000}};
   MatchController match_controller{game, match_config, command};
   MainMenu main_menu_;
   GameScreen game_screen_;
-  ScreenId current_ = ScreenId::Game;
+  ScreenId current_ = ScreenId::Menu;
   const Assets &assets_;
+  Button home_button_;
 
   void draw_navbar();
 
@@ -30,4 +30,5 @@ public:
   Screen(const Assets &assets);
   void update(const Input &in);
   void draw();
+  void set_screen(ScreenId s) { current_ = s; }
 };

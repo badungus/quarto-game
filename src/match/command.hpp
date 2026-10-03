@@ -1,7 +1,8 @@
-// command.hpp - Command variant for everything that changes a match: SelectCell, SelectGive, Undo, Redo, JumpTo, NewGame, Pause, Resume, Step.
+// command.hpp - Command variant for everything that changes a match:
+// SelectCell, SelectGive, Undo, Redo, JumpTo, NewGame, Pause, Resume, Step.
 #pragma once
-#include "types.hpp"
 #include "match_config.hpp"
+#include "types.hpp"
 #include <variant>
 
 // Namespaced because types.hpp already defines a struct Undo.
@@ -33,6 +34,6 @@ struct Step {}; // while paused, let the engine make exactly one move
 
 } // namespace cmd
 
-using Command = std::variant<cmd::SelectCell, cmd::SelectGive, cmd::Undo,
-                             cmd::Redo, cmd::JumpTo, cmd::NewGame, cmd::Pause,
-                             cmd::Resume, cmd::Step>;
+using Command =
+    std::variant<cmd::SelectCell, cmd::SelectGive, cmd::Undo, cmd::Redo,
+                 cmd::JumpTo, cmd::NewGame, cmd::Pause, cmd::Resume, cmd::Step>;

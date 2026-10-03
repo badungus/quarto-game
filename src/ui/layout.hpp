@@ -1,6 +1,7 @@
 // layout.hpp - Rect helpers for resolution-independent layout: split, inset,
 // center, aspect-fit square.
 #pragma once
+#include "layout.hpp"
 #include <algorithm>
 #include <raylib.h>
 
@@ -18,6 +19,11 @@ constexpr int BORDER = 20;
 constexpr float SCREEN_BORDER = 15;
 
 constexpr float NAVBAR_HEIGHT = 100;
+
+constexpr float START_WIDTH = 500;
+constexpr float START_HEIGHT = 200;
+constexpr float START_X = (DESIGN_WIDTH - START_WIDTH) / 2.0f;
+constexpr float START_Y = 200;
 
 constexpr int POOL_COLS = 8;
 constexpr int POOL_ROWS = 16 / POOL_COLS;
@@ -49,3 +55,9 @@ constexpr float EVALBAR_Y = PLAYER_Y + EVALBAR_MARGIN;
 
 constexpr float BUTTON_WIDTH = 50;
 constexpr float BUTTON_HEIGHT = 50;
+
+constexpr float PLAYER_DD_WIDTH = 250;
+constexpr float PLAYER_DD_HEIGHT = 100;
+constexpr float PLAYER_1_DD_X = DESIGN_WIDTH / 2.0f - PLAYER_DD_WIDTH;
+constexpr float PLAYER_2_DD_X = DESIGN_WIDTH / 2.0f;
+constexpr float PLAYER_DD_Y = 600;

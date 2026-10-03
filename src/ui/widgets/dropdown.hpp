@@ -1,0 +1,26 @@
+#pragma once
+#include "button.hpp"
+#include "input.hpp"
+#include "raylib.h"
+#include <optional>
+#include <vector>
+
+class Dropdown {
+private:
+  Rectangle bounds_;
+  const Texture2D &background_;
+  const Texture2D &hover_image_;
+  const Texture2D &armed_image_;
+  ButtonContent content_;
+  std::vector<ButtonContent> dd_content_;
+  Button main_button_;
+  std::vector<Button> buttons_;
+  bool active_;
+
+public:
+  Dropdown(Rectangle bounds, const Texture2D &background,
+           const Texture2D &hover_image, const Texture2D &armed_image,
+           ButtonContent content, std::vector<ButtonContent> dd_content);
+  void draw();
+  std::optional<int> update(const Input &in);
+};

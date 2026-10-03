@@ -1,10 +1,10 @@
 // match_controller.hpp - Declares MatchController: owns GameState, History and
 // two Players; applies Commands and drives turns.
 #pragma once
-#include "game_state.hpp"
-#include "player.hpp"
 #include "command.hpp"
+#include "game_state.hpp"
 #include "match_config.hpp"
+#include "player.hpp"
 #include <memory>
 
 enum class GameStatus { PLAYER_ONE_WIN, DRAW, PLAYER_TWO_WIN };
@@ -15,7 +15,7 @@ private:
   GameStatus game_status_;
   bool active_ = true;
   std::optional<Command> &command_;
-  MatchConfig match_config_;
+  MatchConfig &match_config_;
   std::unique_ptr<Player> make_player(const Seat &seat, const Game &game);
   std::unique_ptr<Player> player_1_;
   std::unique_ptr<Player> player_2_;

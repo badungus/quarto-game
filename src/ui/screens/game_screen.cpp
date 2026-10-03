@@ -83,7 +83,7 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
   }
 }
 
-std::optional<Command> GameScreen::update(const Input &in) {
+Action GameScreen::update(const Input &in) {
   // board buttons
   std::optional<Command> command = std::nullopt;
   for (Cell i = 0; i < 16; ++i) {
@@ -130,7 +130,7 @@ std::optional<Command> GameScreen::update(const Input &in) {
   if (redo_.update(in))
     command = cmd::Redo{};
 
-  return command;
+  return {command, ScreenId::Game};
 }
 
 void GameScreen::draw_piece_pool() {
