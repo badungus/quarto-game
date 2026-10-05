@@ -30,8 +30,8 @@ std::optional<int> Dropdown::update(const Input &in) {
   if (!active_) {
     if (main_button_.update(in)) {
       active_ = true;
-      return std::nullopt;
     }
+    return std::nullopt;
   }
   std::optional<int> clicked_button = std::nullopt;
   for (int i = 0; i < dd_content_.size(); ++i) {

@@ -37,13 +37,14 @@ void Button::draw() const {
 
   if (std::holds_alternative<std::string>(content_)) {
     const std::string &text = std::get<std::string>(content_);
-    int font_size = (int)(dest.height * 0.5f);
+    int font_size = (int)(dest.height * 0.3f);
     int text_width = MeasureText(text.c_str(), font_size);
     DrawText(text.c_str(), (int)(dest.x + (dest.width - text_width) / 2),
-             (int)(dest.y + (dest.height - font_size) / 2), font_size, BLACK);
+             (int)(dest.y + (dest.height - font_size) / 2), font_size,
+             GetColor(0x1E1E1EFF));
   } else if (std::holds_alternative<const Texture2D *>(content_)) {
     const Texture2D &image = *std::get<const Texture2D *>(content_);
     DrawTexturePro(image, {0, 0, (float)image.width, (float)image.height}, dest,
-                   {0, 0}, 0.0f, WHITE);
+                   {0, 0}, 0, WHITE);
   }
 }

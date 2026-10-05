@@ -3,9 +3,9 @@
 #pragma once
 
 #include "game_state.hpp"
-#include "types.hpp"
 #include "player.hpp"
 #include "process.hpp"
+#include "types.hpp"
 #include <array>
 #include <mutex>
 #include <optional>
@@ -25,13 +25,12 @@ private:
   int movetime_;
   std::string buffer_;
   void parse_engine_output(std::string input);
-  std::vector<EngineInfo> engine_info_;
   // engine_info_history_[k] holds the info of the search made at game top k.
   std::array<std::vector<EngineInfo>, 17> engine_info_history_;
   int search_top_ = 0; // game top the running search belongs to
   OptionalMove parse_move(std::string move_string);
   OptionalMove bestmove_;
-  // bestmove_ and engine_info_ are written from the reader thread
+  // bestmove_ and are written from the reader thread
   std::mutex bestmove_mutex_;
   TinyProcessLib::Process engine_;
   // Idle: no search for this turn yet. Searching: "go" sent, bestmove not yet
@@ -51,4 +50,5 @@ public:
   std::optional<Piece> poll_piece() override;
   void cancel() override;
   std::array<std::vector<EngineInfo>, 17> engine_info() override;
+  void stop_search() override;
 };

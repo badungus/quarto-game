@@ -21,6 +21,7 @@ private:
   Button redo_;
   Button pause_;
   Button resume_;
+  Button stop_search_;
 
 public:
   GameScreen(Game &game, MatchController &match_controller,

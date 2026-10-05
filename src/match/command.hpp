@@ -31,9 +31,10 @@ struct NewGame {
 struct Pause {};
 struct Resume {};
 struct Step {}; // while paused, let the engine make exactly one move
+struct Stop {};
 
 } // namespace cmd
 
-using Command =
-    std::variant<cmd::SelectCell, cmd::SelectGive, cmd::Undo, cmd::Redo,
-                 cmd::JumpTo, cmd::NewGame, cmd::Pause, cmd::Resume, cmd::Step>;
+using Command = std::variant<cmd::SelectCell, cmd::SelectGive, cmd::Undo,
+                             cmd::Redo, cmd::JumpTo, cmd::NewGame, cmd::Pause,
+                             cmd::Resume, cmd::Step, cmd::Stop>;

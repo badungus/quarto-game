@@ -2,8 +2,8 @@
 // current GameState.
 #include "engine_player.hpp"
 #include "game_state.hpp"
-#include "types.hpp"
 #include "process.hpp"
+#include "types.hpp"
 #include <algorithm>
 #include <cctype>
 #include <mutex>
@@ -43,7 +43,6 @@ void EnginePlayer::start_search() {
   // Drop anything left over from the previous search before starting a new
   // one, otherwise a stale cell gets played immediately.
   bestmove_ = {};
-  engine_info_.clear();
   // Read the top here, on the main thread, not when bestmove arrives on the
   // reader thread. A new search means a new move at this top, which ends the
   // redo line, so the infos stored from here on are outdated.
@@ -87,6 +86,12 @@ void EnginePlayer::cancel() {
   }
   bestmove_ = {};
   state_ = SearchState::Idle;
+}
+
+void EnginePlayer::stop_search() {
+  if (state_ == SearchState::Searching) {
+    engine_.write("stop\n");
+  }
 }
 
 std::array<std::vector<EngineInfo>, 17> EnginePlayer::engine_info() {
@@ -153,7 +158,7 @@ void EnginePlayer::parse_engine_output(std::string line) {
     // Infos still belonging to a cancelled search are for the old position.
     if (stale_bestmoves_ > 0)
       return;
-    engine_info_.push_back(engine_output);
+    engine_info_history_[search_top_].push_back(engine_output);
 
   } else if (tokens[0] == "bestmove" && tokens.size() >= 2) {
     if (tokens.size() > 1 &&
@@ -166,7 +171,6 @@ void EnginePlayer::parse_engine_output(std::string line) {
         --stale_bestmoves_;
         return;
       }
-      engine_info_history_[search_top_] = engine_info_;
       bestmove_ = parse_move(tokens[1]);
       state_ = SearchState::ResultReady;
     }

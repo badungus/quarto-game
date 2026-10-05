@@ -17,6 +17,9 @@ struct Assets {
   Texture2D redo;
   Texture2D pause;
   Texture2D resume;
+  Texture2D evalbar_background;
+  Texture2D evalbar;
+  Texture2D stop_search;
 
   // Must be called after InitWindow(), since textures need a GL context.
   void load();

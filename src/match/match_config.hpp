@@ -1,6 +1,5 @@
 #pragma once
 #include <array>
-#include <numbers>
 #include <string>
 #include <variant>
 
@@ -12,8 +11,8 @@ struct EngineSeat {
 };
 
 inline constexpr std::array ENGINES{
-    EngineSeat{"Thor", "thor", 16, 1000},
-    EngineSeat{"Odin", "odin", 16, 1000},
+    EngineSeat{"Thor", "thor", 16, 3000},
+    EngineSeat{"Odin", "odin", 16, 3000},
 };
 inline constexpr std::array ENGINE_NAMES = {ENGINES[0].name, ENGINES[1].name};
 

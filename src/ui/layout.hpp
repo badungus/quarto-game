@@ -1,7 +1,6 @@
 // layout.hpp - Rect helpers for resolution-independent layout: split, inset,
 // center, aspect-fit square.
 #pragma once
-#include "layout.hpp"
 #include <algorithm>
 #include <raylib.h>
 
@@ -15,8 +14,7 @@ inline float ui_scale() {
 }
 
 constexpr int BORDER = 20;
-
-constexpr float SCREEN_BORDER = 15;
+constexpr float UI_SPACING = 25;
 
 constexpr float NAVBAR_HEIGHT = 100;
 
@@ -46,18 +44,33 @@ constexpr float PLAYER_1_X = 0;
 constexpr float PLAYER_2_X = DESIGN_WIDTH - PLAYER_WIDTH;
 constexpr float PLAYER_Y = NAVBAR_HEIGHT;
 
-constexpr float EVALBAR_MARGIN = 25;
+constexpr float PLAYER_NAME_WIDTH = PLAYER_WIDTH - 2 * UI_SPACING;
+constexpr float PLAYER_1_NAME_X = PLAYER_1_X + UI_SPACING;
+constexpr float PLAYER_2_NAME_X = PLAYER_2_X + UI_SPACING;
+constexpr float PLAYER_NAME_Y = PLAYER_Y + UI_SPACING;
+constexpr float PLAYER_NAME_HEIGHT = 100;
+
 constexpr float EVALBAR_WIDTH = 25;
-constexpr float EVALBAR_1_X = PLAYER_1_X + PLAYER_WIDTH - 2.0f * EVALBAR_MARGIN;
-constexpr float EVALBAR_2_X = PLAYER_2_X + EVALBAR_MARGIN;
-constexpr float EVALBAR_HEIGHT = PLAYER_HEIGHT - 2 * EVALBAR_MARGIN;
-constexpr float EVALBAR_Y = PLAYER_Y + EVALBAR_MARGIN;
+constexpr float EVALBAR_1_X =
+    PLAYER_1_X + PLAYER_WIDTH - UI_SPACING - EVALBAR_WIDTH;
+constexpr float EVALBAR_2_X = PLAYER_2_X + UI_SPACING;
+constexpr float EVALBAR_HEIGHT =
+    PLAYER_HEIGHT - 3 * UI_SPACING - PLAYER_NAME_HEIGHT;
+constexpr float EVALBAR_Y = PLAYER_Y + 2 * UI_SPACING + PLAYER_NAME_HEIGHT;
 
 constexpr float BUTTON_WIDTH = 50;
 constexpr float BUTTON_HEIGHT = 50;
+constexpr int BUTTON_COUNT = 6;
 
 constexpr float PLAYER_DD_WIDTH = 250;
 constexpr float PLAYER_DD_HEIGHT = 100;
 constexpr float PLAYER_1_DD_X = DESIGN_WIDTH / 2.0f - PLAYER_DD_WIDTH;
 constexpr float PLAYER_2_DD_X = DESIGN_WIDTH / 2.0f;
 constexpr float PLAYER_DD_Y = 600;
+
+constexpr float ENGINE_OUTPUT_PLAYER_1_X = PLAYER_1_NAME_X;
+constexpr float ENGINE_OUTPUT_PLAYER_2_X =
+    PLAYER_2_NAME_X + EVALBAR_WIDTH + UI_SPACING;
+constexpr float ENGINE_OUTPUT_Y =
+    PLAYER_NAME_Y + PLAYER_NAME_HEIGHT + UI_SPACING;
+constexpr float ENGINE_OUTPUT_SIZE = 12;

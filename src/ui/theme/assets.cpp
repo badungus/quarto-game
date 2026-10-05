@@ -32,6 +32,14 @@ void Assets::load() {
                                  GetApplicationDirectory()));
   resume = LoadTexture(TextFormat("%s../assets/images/buttons/resume.png",
                                   GetApplicationDirectory()));
+
+  stop_search = LoadTexture(TextFormat(
+      "%s../assets/images/buttons/stop_search.png", GetApplicationDirectory()));
+  evalbar_background = LoadTexture(
+      TextFormat("%s../assets/images/players/evalbar_background.png",
+                 GetApplicationDirectory()));
+  evalbar = LoadTexture(TextFormat("%s../assets/images/players/evalbar.png",
+                                   GetApplicationDirectory()));
 }
 
 void Assets::unload() {

@@ -16,4 +16,5 @@ public:
   // Drop any move in progress, e.g. because the position was undone.
   virtual void cancel() {}
   virtual std::array<std::vector<EngineInfo>, 17> engine_info() { return {}; }
+  virtual void stop_search() { return; }
 };
