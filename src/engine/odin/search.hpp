@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <random>
 #include <vector>
 
 namespace quarto {
@@ -31,6 +32,11 @@ struct Result {
 struct SearchInfo {
   int depth;
   Result result;
+  std::uint64_t nodes; // nodes visited so far, over all iterations
+  // Forced result in turns of the side to move (one turn = place + give):
+  // N > 0 wins on its own N-th turn, N < 0 loses on the opponent's N-th turn,
+  // 0 if nothing is proven yet.
+  int mate;
 };
 using InfoFn = std::function<void(const SearchInfo &)>;
 
@@ -41,6 +47,11 @@ private:
   int movetime_;                                     // time budget in ms
   // Set when time runs out or on request (from another thread); aborts search.
   std::atomic<bool> stop_ = false;
+  // Picks among tied best moves. Kept across searches, so a fixed seed makes
+  // a whole game reproducible (with fixed depth; movetime adds timing noise).
+  // seed_ is declared first because gen_ is initialised from it.
+  std::uint64_t seed_ = std::random_device{}();
+  std::mt19937_64 gen_{seed_};
 
   // Scores every legal root move at `depth` and returns all moves tied for
   // the best score (never empty).
@@ -54,5 +65,12 @@ public:
   void set_movetime(int movetime) { movetime_ = movetime; }
   // Ask a running search to stop; it returns its last completed result.
   void set_stop(bool stop) { stop_ = stop; }
+  // Reseeds the tie-break generator. Only call while no search is running.
+  void set_seed(std::uint64_t seed) {
+    seed_ = seed;
+    gen_.seed(seed);
+  }
+  // The seed the generator was last started from.
+  std::uint64_t seed() const { return seed_; }
 };
 } // namespace quarto

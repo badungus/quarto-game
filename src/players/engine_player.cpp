@@ -114,6 +114,11 @@ void EnginePlayer::parse_engine_output(std::string line) {
   }
 
   if (tokens[0] == "info") {
+    // Only search progress carries a depth. Other infos (e.g. "info seed")
+    // would otherwise be stored as a score-0 result and reset the evalbar.
+    if (std::find(tokens.begin(), tokens.end(), "depth") == tokens.end())
+      return;
+
     // parse depth, score, move
 
     EngineInfo engine_output{};

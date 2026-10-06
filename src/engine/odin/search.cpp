@@ -4,15 +4,25 @@
 #include <algorithm>
 #include <bit>
 #include <chrono>
-#include <random>
 
 namespace quarto {
+
+namespace {
+// Turns a root score from an iteration of `depth` into SearchInfo::mate.
+// A win found with `d` depth left scores WIN + d and happens at ply
+// depth - d, counted from 0 at the root; even plies are the root side's.
+int mate_distance(Score score, int depth) {
+  if (score >= WIN)
+    return (depth - (score - WIN)) / 2 + 1;
+  if (score <= -WIN)
+    return -((depth - (-score - WIN) + 1) / 2);
+  return 0;
+}
+} // namespace
 
 Result Search::search(Position &pos, int depth, InfoFn cb) {
   nodes_ = 0;
   start_time_ = std::chrono::steady_clock::now();
-  std::random_device rd;
-  std::mt19937 gen(rd());
 
   // negamax_root never returns an empty list, so one pick per iteration is
   // always valid. The same pick is reported and returned.
@@ -20,19 +30,19 @@ Result Search::search(Position &pos, int depth, InfoFn cb) {
   for (int i = 1; i <= depth && !stop_; ++i) {
     std::vector<Result> best_moves = negamax_root(pos, i);
     if (!stop_) {
-      std::uniform_int_distribution<> dist(
-          0, static_cast<int>(best_moves.size()) - 1);
-      best = best_moves[dist(gen)]; // one of the best moves
-      if (best.score >= WIN - i) {
+      // Plain modulo instead of uniform_int_distribution: the distribution's
+      // output differs between standard libraries, this does not. The bias is
+      // negligible for at most 240 moves.
+      best = best_moves[gen_() % best_moves.size()]; // one of the best moves
+      // A proven result cannot change with more depth. The score is reported
+      // as plain +-WIN; the distance goes into `mate`.
+      int mate = mate_distance(best.score, i);
+      if (mate != 0) {
         stop_ = true;
-        best.score = WIN;
-      }
-      if (best.score <= -WIN + i) {
-        stop_ = true;
-        best.score = -WIN;
+        best.score = mate > 0 ? WIN : -WIN;
       }
       if (cb)
-        cb({i, best});
+        cb({i, best, nodes_, mate});
     }
   }
   return best;
@@ -83,7 +93,7 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
     pos.place_piece(cell);
     if (move_wins(pos, cell)) { // An outright win
       pos.undo_place_piece();
-      return {{WIN, {cell, -1}}};
+      return {{Score(WIN + depth), {cell, -1}}}; // same scale as negamax
     }
 
     if (pos.empty_cells() == 0) { // draw

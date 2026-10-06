@@ -13,6 +13,15 @@ void Engine::go(SearchCallbacks callback) {
   if (search_thread_.joinable())
     search_thread_.join();
   search_.set_stop(false);
+  if (pending_seed_) {
+    search_.set_seed(*pending_seed_);
+    pending_seed_.reset();
+    seed_reported_ = false;
+  }
+  if (!seed_reported_ && callback.on_seed) {
+    callback.on_seed(search_.seed());
+    seed_reported_ = true;
+  }
 
   int max_time = infinite_ ? DEFAULT_MOVETIME : movetime_;
   search_.set_movetime(max_time);

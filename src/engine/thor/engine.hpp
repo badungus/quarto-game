@@ -4,7 +4,9 @@
 #include "types.hpp"
 #include <array>
 #include <climits>
+#include <cstdint>
 #include <functional>
+#include <optional>
 #include <thread>
 #include <tuple>
 
@@ -25,6 +27,8 @@ struct SearchLimits {
 struct SearchCallbacks {
   InfoFn on_info;
   std::function<void(Result)> on_bestmove;
+  // Called before the search starts when the seed has not been reported yet.
+  std::function<void(std::uint64_t)> on_seed;
 };
 
 class Engine {
@@ -32,6 +36,11 @@ private:
   int depth_ = DEFAULT_DEPTH;
   int movetime_ = DEFAULT_MOVETIME;
   bool infinite_ = DEFAULT_INFINITE;
+  // Applied in go(), once the previous search thread has finished, so the
+  // generator is never reseeded while the search thread uses it.
+  std::optional<std::uint64_t> pending_seed_;
+  // The startup seed counts as new, so the first go reports it too.
+  bool seed_reported_ = false;
   Position pos_;
   Search search_;
   std::jthread search_thread_; // declared last: joins before the rest is gone
@@ -45,5 +54,6 @@ public:
   void set_depth(int depth) { depth_ = depth; }
   void set_movetime(int movetime) { movetime_ = movetime; }
   void set_infinite(bool infinite) { infinite_ = infinite; }
+  void set_seed(std::uint64_t seed) { pending_seed_ = seed; }
 };
 } // namespace quarto

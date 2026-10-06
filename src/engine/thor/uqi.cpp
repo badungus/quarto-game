@@ -72,6 +72,21 @@ void uqi_loop(Engine &engine) {
       }
     }
 
+    // "seed N" fixes the tie-break generator; it stays in effect for every
+    // following search until the next seed.
+    size_t seed_idx =
+        std::find(tokens.begin(), tokens.end(), "seed") - tokens.begin();
+    if (seed_idx < tokens.size()) {
+      bool is_number =
+          seed_idx + 1 < tokens.size() && !tokens[seed_idx + 1].empty() &&
+          tokens[seed_idx + 1].size() <= 19 && // fits in a uint64 for stoull
+          std::all_of(tokens[seed_idx + 1].begin(), tokens[seed_idx + 1].end(),
+                      [](unsigned char c) { return std::isdigit(c); });
+      if (is_number) {
+        engine.set_seed(std::stoull(tokens[seed_idx + 1]));
+      }
+    }
+
     if (std::find(tokens.begin(), tokens.end(), "infinite") != tokens.end()) {
       engine.set_infinite(true);
     }
@@ -94,7 +109,10 @@ void uqi_loop(Engine &engine) {
                      [](const SearchInfo &i) {
                        std::osyncstream(std::cout)
                            << "info depth " << i.depth << " score "
-                           << i.result.score << " move "
+                           << i.result.score
+                           << (i.mate != 0 ? " mate " + std::to_string(i.mate)
+                                           : "")
+                           << " nodes " << i.nodes << " move "
                            << format_move(i.result.move,
                                           (i.result.score == WIN))
                            << std::endl;
@@ -105,6 +123,11 @@ void uqi_loop(Engine &engine) {
                            << "bestmove "
                            << format_move(result.move, (result.score == WIN))
                            << std::endl;
+                     },
+                 .on_seed =
+                     [](std::uint64_t seed) {
+                       std::osyncstream(std::cout)
+                           << "info seed " << seed << std::endl;
                      }});
     }
 
