@@ -87,6 +87,8 @@ quarto-game/
 │       └── pieces/         piece1.png … piece16.png
 ├── docs/
 │   └── ui-architecture.md  full UI design: layers, data flow, file roles
+├── tools/
+│   └── match.py            headless engine-vs-engine match runner
 └── src/
     ├── main.cpp            creates Game + Gui and runs the main loop
     ├── engine/             search engine (namespace quarto)
@@ -131,6 +133,19 @@ engine/    search
   properties. `-1` means none. Two pieces share a property when they have the
   same value in that bit.
 - A **move** is always a pair: `{cell to place on, piece to give}`.
+
+## Engine matches
+
+`tools/match.py` plays engines against each other without the GUI. It needs
+Python 3 and the engines built in `build/`:
+
+```sh
+python tools/match.py --a thor --b odin --games 100 --movetime 200
+```
+
+Games start from the empty board, and the engines take turns moving first.
+The runner checks every move against the rules, then prints the result of each
+game with the seeds both engines got, followed by the score and an Elo estimate.
 
 ## Development notes
 
