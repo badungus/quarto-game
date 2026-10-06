@@ -6,6 +6,7 @@
 #include "types.hpp"
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <mutex>
 #include <optional>
 #include <raylib.h>
@@ -99,6 +100,31 @@ std::array<std::vector<EngineInfo>, 17> EnginePlayer::engine_info() {
   return engine_info_history_;
 }
 
+namespace {
+// The token following key, if the line contains both.
+std::optional<std::string> value_after(const std::vector<std::string> &tokens,
+                                       const std::string &key) {
+  auto it = std::find(tokens.begin(), tokens.end(), key);
+  if (it == tokens.end() || it + 1 == tokens.end())
+    return std::nullopt;
+  return *(it + 1);
+}
+
+// Parses a decimal integer. At most 18 digits, so stoll cannot overflow.
+std::optional<long long> parse_integer(const std::optional<std::string> &tok,
+                                       bool allow_sign) {
+  if (!tok)
+    return std::nullopt;
+  size_t start = (allow_sign && !tok->empty() && (*tok)[0] == '-') ? 1 : 0;
+  bool is_number = tok->size() > start && tok->size() - start <= 18 &&
+                   std::all_of(tok->begin() + start, tok->end(),
+                               [](unsigned char c) { return std::isdigit(c); });
+  if (!is_number)
+    return std::nullopt;
+  return std::stoll(*tok);
+}
+} // namespace
+
 void EnginePlayer::parse_engine_output(std::string line) {
 
   std::vector<std::string> tokens;
@@ -119,46 +145,22 @@ void EnginePlayer::parse_engine_output(std::string line) {
     if (std::find(tokens.begin(), tokens.end(), "depth") == tokens.end())
       return;
 
-    // parse depth, score, move
-
     EngineInfo engine_output{};
+    // Engines on Windows end their lines with "\r\n".
+    if (!line.empty() && line.back() == '\r')
+      line.pop_back();
+    engine_output.raw = line;
 
-    size_t depth_idx =
-        std::find(tokens.begin(), tokens.end(), "depth") - tokens.begin();
-    if (depth_idx < tokens.size()) {
-      bool is_number =
-          depth_idx + 1 < tokens.size() && !tokens[depth_idx + 1].empty() &&
-          tokens[depth_idx + 1].size() <= 9 && // fits in an int for stoi
-          std::all_of(tokens[depth_idx + 1].begin(),
-                      tokens[depth_idx + 1].end(),
-                      [](unsigned char c) { return std::isdigit(c); });
-      if (is_number) {
-        int depth = std::stoi(tokens[depth_idx + 1]);
-        engine_output.depth = depth;
-      }
-    }
+    if (auto depth = parse_integer(value_after(tokens, "depth"), false))
+      engine_output.depth = static_cast<int>(*depth);
+    if (auto score = parse_integer(value_after(tokens, "score"), true))
+      engine_output.score = static_cast<int16_t>(*score);
+    if (auto mate = parse_integer(value_after(tokens, "mate"), true))
+      engine_output.mate = static_cast<int>(*mate);
+    if (auto nodes = parse_integer(value_after(tokens, "nodes"), false))
+      engine_output.nodes = static_cast<std::uint64_t>(*nodes);
+    engine_output.move = value_after(tokens, "move");
 
-    size_t score_idx =
-        std::find(tokens.begin(), tokens.end(), "score") - tokens.begin();
-    if (score_idx < tokens.size()) {
-      static const std::string none;
-      const std::string &tok =
-          score_idx + 1 < tokens.size() ? tokens[score_idx + 1] : none;
-      size_t start = (!tok.empty() && tok[0] == '-') ? 1 : 0; // allow sign
-      bool is_number =
-          tok.size() > start && tok.size() <= 9 && // fits in an int for stoi
-          std::all_of(tok.begin() + start, tok.end(),
-                      [](unsigned char c) { return std::isdigit(c); });
-      if (is_number) {
-        engine_output.score = std::stoi(tok);
-      }
-    };
-
-    size_t move_idx =
-        std::find(tokens.begin(), tokens.end(), "move") - tokens.begin();
-    if (move_idx + 1 < tokens.size()) {
-      engine_output.move = tokens[move_idx + 1];
-    };
     std::lock_guard<std::mutex> lock(bestmove_mutex_);
     // Infos still belonging to a cancelled search are for the old position.
     if (stale_bestmoves_ > 0)

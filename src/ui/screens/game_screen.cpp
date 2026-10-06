@@ -25,6 +25,14 @@ latest_info(const std::array<std::vector<EngineInfo>, 17> &history, int top) {
   }
   return nullptr;
 }
+
+// The info line as the engine sent it, so keywords the GUI does not parse are
+// shown too.
+std::string info_text(const EngineInfo &info) {
+  const std::string prefix = "info ";
+  return info.raw.starts_with(prefix) ? info.raw.substr(prefix.size())
+                                      : info.raw;
+}
 } // namespace
 
 GameScreen::GameScreen(Game &game, MatchController &match_controller,
@@ -320,7 +328,7 @@ void GameScreen::draw_player() {
     std::array<std::vector<EngineInfo>, 17> info_player_1 =
         match_controller_.engine_info().player_1_history;
     const EngineInfo *latest = latest_info(info_player_1, game_.top());
-    int16_t eval = latest ? latest->score : 0;
+    int16_t eval = latest ? latest->score.value_or(0) : 0;
     Rectangle eval_1_background_dest = {EVALBAR_1_X * s, EVALBAR_Y * s,
                                         EVALBAR_WIDTH * s, EVALBAR_HEIGHT * s};
     float evalbar_height = EVALBAR_HEIGHT * ((eval + WIN) / (2.0f * WIN));
@@ -343,10 +351,7 @@ void GameScreen::draw_player() {
       engine_output_1_y += 0.7 * UI_SPACING;
       for (auto &output : info_player_1[i]) {
 
-        std::string text = "depth " + std::to_string(output.depth) + " score " +
-                           std::to_string(output.score) + " move " +
-                           output.move;
-        DrawText(text.c_str(), ENGINE_OUTPUT_PLAYER_1_X * s,
+        DrawText(info_text(output).c_str(), ENGINE_OUTPUT_PLAYER_1_X * s,
                  engine_output_1_y * s, ENGINE_OUTPUT_SIZE * s,
                  GetColor(0x1E1E1EFF));
 
@@ -363,7 +368,7 @@ void GameScreen::draw_player() {
         match_controller_.engine_info().player_2_history;
     const EngineInfo *latest = latest_info(info_player_2, game_.top());
 
-    int16_t eval = latest ? latest->score : 0;
+    int16_t eval = latest ? latest->score.value_or(0) : 0;
     Rectangle eval_2_background_dest = {EVALBAR_2_X * s, EVALBAR_Y * s,
                                         EVALBAR_WIDTH * s, EVALBAR_HEIGHT * s};
     float evalbar_height = EVALBAR_HEIGHT * ((eval + WIN) / (2.0f * WIN));
@@ -386,10 +391,7 @@ void GameScreen::draw_player() {
       engine_output_2_y += 0.7 * UI_SPACING;
       for (auto &output : info_player_2[i]) {
 
-        std::string text = "depth " + std::to_string(output.depth) + " score " +
-                           std::to_string(output.score) + " move " +
-                           output.move;
-        DrawText(text.c_str(), ENGINE_OUTPUT_PLAYER_2_X * s,
+        DrawText(info_text(output).c_str(), ENGINE_OUTPUT_PLAYER_2_X * s,
                  engine_output_2_y * s, ENGINE_OUTPUT_SIZE * s,
                  GetColor(0x1E1E1EFF));
 
