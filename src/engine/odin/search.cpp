@@ -146,16 +146,18 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   if (depth == 0 || stop_)
     return eval(pos);
 
+  // Look for a win on every cell before searching any of them, so a losing
+  // give from the parent costs a few win checks instead of whole subtrees.
+  // depth counts down from the root, so a win found with more depth left is
+  // a faster win and scores higher.
+  if (hand_wins(pos))
+    return WIN + depth;
+
+  // No placement below can win anymore, so the loop skips the win check.
   Bitboard empty = pos.empty_cells(); // snapshot, before any place
   while (empty) {
     Cell cell = std::countr_zero(empty); // C++20
     pos.place_piece(cell);
-    if (move_wins(pos, cell)) {
-      // depth counts down from the root, so a win found with more depth
-      // left is a faster win and scores higher.
-      pos.undo_place_piece();
-      return WIN + depth;
-    }
     if (pos.empty_cells() == 0) { // board full: draw
       pos.undo_place_piece();
       return 0;

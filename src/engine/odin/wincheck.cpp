@@ -30,8 +30,7 @@ bool move_wins(const Position &p, Cell cell) {
   return move_wins(cell, p.occupied(), p.props());
 }
 
-// True if the piece in hand completes a winning line on some empty cell.
-static bool hand_wins(Position &pos) {
+bool hand_wins(Position &pos) {
   Bitboard empty = pos.empty_cells();
   while (empty) {
     Cell cell = std::countr_zero(empty);
