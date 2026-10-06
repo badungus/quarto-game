@@ -1,18 +1,19 @@
 #pragma once
 #include <array>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <variant>
+#include <vector>
 
 struct EngineSeat {
   std::string name;
   std::string executable;
-  int search_depth;
-  int time_limit;
 };
 
 inline constexpr std::array ENGINES{
-    EngineSeat{"Thor", "thor", 16, 3000},
-    EngineSeat{"Odin", "odin", 16, 3000},
+    EngineSeat{"Thor", "thor"},
+    EngineSeat{"Odin", "odin"},
 };
 inline constexpr std::array ENGINE_NAMES = {ENGINES[0].name, ENGINES[1].name};
 
@@ -35,7 +36,51 @@ struct HumanSeat {
 
 using Seat = std::variant<HumanSeat, EngineSeat>;
 
+// Engine search settings, set per player in the main menu. A Number setting
+// sends "token value", a Toggle sends "token" while on; empty values are left
+// out of the "go" command.
+enum class SettingKind { Number, Toggle };
+
+struct EngineSetting {
+  std::string label;
+  std::string token;
+  SettingKind kind;
+  std::string default_value;
+};
+
+inline const std::vector<EngineSetting> ENGINE_SETTINGS = {
+    {"DEPTH", "depth", SettingKind::Number, "16"},
+    {"MOVETIME", "movetime", SettingKind::Number, "3000"},
+    {"INFINITE", "infinite", SettingKind::Toggle, ""},
+};
+
+inline std::vector<std::string> default_settings() {
+  std::vector<std::string> values;
+  for (const EngineSetting &s : ENGINE_SETTINGS)
+    values.push_back(s.default_value);
+  return values;
+}
+
 struct MatchConfig {
   Seat player_1;
   Seat player_2;
+  // Value per entry of ENGINE_SETTINGS, for player one and player two.
+  std::array<std::vector<std::string>, 2> settings{default_settings(),
+                                                   default_settings()};
+  // Sent to the engines as "seed N" before the game; unset leaves the engine
+  // with its own random seed.
+  std::array<std::optional<std::uint64_t>, 2> seeds{};
+
+  std::string go_args(int player) const {
+    std::string args;
+    for (size_t i = 0; i < ENGINE_SETTINGS.size(); ++i) {
+      const std::string &value = settings[player][i];
+      if (value.empty())
+        continue;
+      args += " " + ENGINE_SETTINGS[i].token;
+      if (ENGINE_SETTINGS[i].kind == SettingKind::Number)
+        args += " " + value;
+    }
+    return args;
+  }
 };

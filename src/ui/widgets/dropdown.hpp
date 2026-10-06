@@ -15,7 +15,7 @@ private:
   std::vector<ButtonContent> dd_content_;
   Button main_button_;
   std::vector<Button> buttons_;
-  bool active_;
+  bool active_ = false;
 
 public:
   Dropdown(Rectangle bounds, const Texture2D &background,

@@ -17,4 +17,7 @@ public:
   virtual void cancel() {}
   virtual std::array<std::vector<EngineInfo>, 17> engine_info() { return {}; }
   virtual void stop_search() { return; }
+  // True when the last poll found the finished answer without the part that
+  // was asked for, so that part will never come.
+  virtual bool move_missing() const { return false; }
 };

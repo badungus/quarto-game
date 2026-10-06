@@ -46,45 +46,69 @@ void MatchController::update() {
   PlayerID current = game_.current_player();
   switch (current) {
   case PlayerID::ONE:
-    update_player(*player_1_);
+    update_player(*player_1_, current);
     break;
 
   case PlayerID::TWO:
-    update_player(*player_2_);
+    update_player(*player_2_, current);
     break;
   }
 
+  if (result_)
+    return; // forfeited
   if (game_.win()) {
-    game_status_ = current == PlayerID::ONE ? GameStatus::PLAYER_ONE_WIN
-                                            : GameStatus::PLAYER_TWO_WIN;
+    result_ = {current == PlayerID::ONE ? GameStatus::PLAYER_ONE_WIN
+                                        : GameStatus::PLAYER_TWO_WIN,
+               "win"};
     active_ = false;
   } else if (game_.draw()) {
-    game_status_ = GameStatus::DRAW;
+    result_ = {GameStatus::DRAW, "board full"};
     active_ = false;
   }
 }
 
-void MatchController::update_player(Player &player) {
+// A human's illegal click is just ignored, but an engine that answers with an
+// illegal or incomplete move would stall the game, so it loses instead.
+void MatchController::update_player(Player &player, PlayerID id) {
+  const bool engine = !player_is_human();
   if (!game_.piece_placed()) {
     std::optional<Cell> c = player.poll_cell();
 
     if (c.has_value()) {
-      game_.place_piece(*c);
+      if (!game_.place_piece(*c) && engine)
+        return forfeit(id, "illegal placement");
+    } else if (engine && player.move_missing()) {
+      return forfeit(id, "no placement");
     }
   }
+
+  // The winning placement ends the game, nothing is given after it.
+  if (game_.win() || game_.draw())
+    return;
 
   if (game_.piece_placed()) {
     std::optional<Piece> p = player.poll_piece();
     if (p.has_value()) {
-      game_.give_hand(*p);
+      if (!game_.give_hand(*p) && engine)
+        return forfeit(id, "illegal give");
+    } else if (engine && player.move_missing()) {
+      return forfeit(id, "no give");
     }
   }
+}
+
+void MatchController::forfeit(PlayerID id, const std::string &reason) {
+  result_ = {id == PlayerID::ONE ? GameStatus::PLAYER_TWO_WIN
+                                 : GameStatus::PLAYER_ONE_WIN,
+             reason};
+  active_ = false;
 }
 
 // Steps back half moves and pauses the game if its the engines turn
 void MatchController::undo() {
   player_1_->cancel();
   player_2_->cancel();
+  result_.reset();
 
   game_.piece_placed() ? game_.unplace_piece() : game_.ungive_hand();
   if (!player_is_human()) {
@@ -98,6 +122,7 @@ void MatchController::undo() {
 void MatchController::redo() {
   player_1_->cancel();
   player_2_->cancel();
+  result_.reset();
 
   game_.piece_placed() ? game_.redo_hand() : game_.redo_piece();
   if (!player_is_human()) {
@@ -109,20 +134,24 @@ void MatchController::redo() {
 };
 
 void MatchController::start(const MatchConfig &config) {
-  player_1_ = make_player(config.player_1, game_);
-  player_2_ = make_player(config.player_2, game_);
+  result_.reset();
+  player_1_ =
+      make_player(config.player_1, game_, config.go_args(0), config.seeds[0]);
+  player_2_ =
+      make_player(config.player_2, game_, config.go_args(1), config.seeds[1]);
 }
 
-std::unique_ptr<Player> MatchController::make_player(const Seat &seat,
-                                                     const Game &game) {
+std::unique_ptr<Player>
+MatchController::make_player(const Seat &seat, const Game &game,
+                             const std::string &go_args,
+                             std::optional<std::uint64_t> seed) {
   return std::visit(overloaded{
                         [this](const HumanSeat &) -> std::unique_ptr<Player> {
                           return std::make_unique<HumanPlayer>(command_);
                         },
                         [&](const EngineSeat &s) -> std::unique_ptr<Player> {
                           return std::make_unique<EnginePlayer>(
-                              game, s.executable, s.executable, s.search_depth,
-                              s.time_limit);
+                              game, s.executable, s.executable, go_args, seed);
                         },
                     },
                     seat);

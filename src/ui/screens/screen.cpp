@@ -4,11 +4,13 @@
 #include "layout.hpp"
 #include "nav.hpp"
 #include "raylib.h"
+#include "results_screen.hpp"
 #include <optional>
 
 Screen::Screen(const Assets &assets)
     : main_menu_(game, match_controller, match_config, assets),
       game_screen_(game, match_controller, assets), assets_(assets),
+      engine_match_(game, match_controller, match_config, assets),
       home_button_(Rectangle{0, 0, BUTTON_WIDTH, BUTTON_HEIGHT},
                    assets.pool_button_background, assets.pool_button_hover,
                    assets.pool_button_armed, &assets.undo) {};
@@ -34,7 +36,12 @@ void Screen::update(const Input &in) {
     break;
   }
   case ScreenId::Result: {
-
+    Action action = engine_match_.update(in);
+    command = action.cmd;
+    // Outside a match, leave whatever game the menu set up alone.
+    if (command || engine_match_.running())
+      match_controller.update();
+    screen = action.screen;
     break;
   }
   }
@@ -42,6 +49,8 @@ void Screen::update(const Input &in) {
   if (home_button_.update(in)) {
     screen = ScreenId::Menu;
   }
+  if (current_ == ScreenId::Result && screen != ScreenId::Result)
+    engine_match_.stop();
   current_ = screen;
 }
 
@@ -57,7 +66,8 @@ void Screen::draw() {
     game_screen_.draw_player();
     game_screen_.draw_buttons();
     break;
-  default:
+  case ScreenId::Result:
+    engine_match_.draw();
     break;
   }
 }

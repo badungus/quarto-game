@@ -10,6 +10,9 @@
 #include "match_config.hpp"
 #include "match_controller.hpp"
 #include "nav.hpp"
+#include "text_field.hpp"
+#include <array>
+#include <variant>
 #include <vector>
 
 class MainMenu {
@@ -17,8 +20,11 @@ private:
   std::vector<Button> pool_buttons_;
   Game &game_;
   Button start_;
+  Button engine_match_;
   Dropdown player_1_dd_;
   Dropdown player_2_dd_;
+  // Per player, one widget per ENGINE_SETTINGS entry.
+  std::array<std::vector<std::variant<TextField, Button>>, 2> settings_ui_;
   MatchConfig &match_config_;
 
 public:

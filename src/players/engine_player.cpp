@@ -16,8 +16,9 @@
 #include <vector>
 
 EnginePlayer::EnginePlayer(const Game &game, std::string name,
-                           std::string executable, int depth, int movetime)
-    : game_(game), name_(name), depth_(depth), movetime_(movetime), buffer_(""),
+                           std::string executable, std::string go_args,
+                           std::optional<std::uint64_t> seed)
+    : game_(game), name_(name), go_args_(go_args), buffer_(""),
       // The engine sits next to the GUI executable, wherever that was launched
       // from. Passed as an argument list so a path with spaces stays intact.
       engine_(
@@ -37,7 +38,10 @@ EnginePlayer::EnginePlayer(const Game &game, std::string name,
               parse_engine_output(line);
             }
           },
-          nullptr, true) {};
+          nullptr, true) {
+  if (seed)
+    engine_.write("seed " + std::to_string(*seed) + "\n");
+};
 
 // Caller holds bestmove_mutex_.
 void EnginePlayer::start_search() {
@@ -60,6 +64,7 @@ std::optional<Cell> EnginePlayer::poll_cell() {
     start_search();
   std::optional<Cell> c = bestmove_.cell;
   bestmove_.cell = std::nullopt;
+  move_missing_ = state_ == SearchState::ResultReady && !c;
   return c;
 };
 
@@ -69,6 +74,7 @@ std::optional<Piece> EnginePlayer::poll_piece() {
   if (state_ == SearchState::Idle)
     start_search();
   std::optional<Piece> g = bestmove_.give;
+  move_missing_ = state_ == SearchState::ResultReady && !g;
   if (g.has_value()) {
     // The search result is fully consumed once the piece is given.
     bestmove_ = {};
@@ -87,6 +93,7 @@ void EnginePlayer::cancel() {
   }
   bestmove_ = {};
   state_ = SearchState::Idle;
+  move_missing_ = false;
 }
 
 void EnginePlayer::stop_search() {
@@ -243,9 +250,7 @@ std::string EnginePlayer::format_position() {
 };
 
 std::string EnginePlayer::format_engine_input() {
-  std::string engine_input = "go";
-  engine_input += " depth " + std::to_string(depth_);
-  engine_input += " movetime " + std::to_string(movetime_);
+  std::string engine_input = "go" + go_args_;
   engine_input += " position " + format_position();
   engine_input += "\n";
   return engine_input;

@@ -19,9 +19,9 @@ constexpr float UI_SPACING = 25;
 constexpr float NAVBAR_HEIGHT = 100;
 
 constexpr float START_WIDTH = 500;
-constexpr float START_HEIGHT = 200;
+constexpr float START_HEIGHT = 150;
 constexpr float START_X = (DESIGN_WIDTH - START_WIDTH) / 2.0f;
-constexpr float START_Y = 200;
+constexpr float START_Y = 125;
 
 constexpr int POOL_COLS = 8;
 constexpr int POOL_ROWS = 16 / POOL_COLS;
@@ -67,6 +67,29 @@ constexpr float PLAYER_DD_HEIGHT = 100;
 constexpr float PLAYER_1_DD_X = DESIGN_WIDTH / 2.0f - PLAYER_DD_WIDTH;
 constexpr float PLAYER_2_DD_X = DESIGN_WIDTH / 2.0f;
 constexpr float PLAYER_DD_Y = 600;
+
+// Engine settings stack upwards from just above the player dropdowns.
+constexpr float SETTING_HEIGHT = 75;
+constexpr float SETTING_BOTTOM_Y = PLAYER_DD_Y - UI_SPACING;
+
+// Main menu button that opens the engine match screen, below the dropdowns.
+constexpr float MENU_MATCH_Y = DESIGN_HEIGHT - UI_SPACING - PLAYER_DD_HEIGHT;
+
+// Engine match screen: controls in two columns on the left, the match output
+// in a panel filling the rest. Settings and dropdowns keep the main menu's
+// heights.
+constexpr float MATCH_COLUMN_1_X = UI_SPACING;
+constexpr float MATCH_COLUMN_2_X = MATCH_COLUMN_1_X + PLAYER_DD_WIDTH;
+constexpr float MATCH_START_Y = NAVBAR_HEIGHT + UI_SPACING;
+constexpr float MATCH_START_HEIGHT = 100;
+constexpr float MATCH_FIELD_Y = MATCH_START_Y + MATCH_START_HEIGHT + UI_SPACING;
+constexpr float MATCH_OUTPUT_X = MATCH_COLUMN_2_X + PLAYER_DD_WIDTH + UI_SPACING;
+constexpr float MATCH_OUTPUT_Y = MATCH_START_Y;
+constexpr float MATCH_OUTPUT_WIDTH = DESIGN_WIDTH - MATCH_OUTPUT_X - UI_SPACING;
+constexpr float MATCH_OUTPUT_HEIGHT = DESIGN_HEIGHT - MATCH_OUTPUT_Y - UI_SPACING;
+constexpr float MATCH_OUTPUT_PADDING = 30;
+constexpr float MATCH_OUTPUT_FONT = 22;
+constexpr float MATCH_OUTPUT_LINE = 30;
 
 constexpr float ENGINE_OUTPUT_PLAYER_1_X = PLAYER_1_NAME_X;
 constexpr float ENGINE_OUTPUT_PLAYER_2_X =

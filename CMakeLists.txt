@@ -39,9 +39,11 @@ add_executable(quarto
     src/ui/input.cpp
     src/ui/screens/game_screen.cpp
     src/ui/screens/main_menu_screen.cpp
+    src/ui/screens/results_screen.cpp
     src/ui/screens/screen.cpp
     src/ui/widgets/button.cpp
     src/ui/widgets/dropdown.cpp
+    src/ui/widgets/text_field.cpp
     src/ui/theme/assets.cpp
     src/match/match_controller.cpp
     src/players/human_player.cpp
