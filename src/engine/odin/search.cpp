@@ -11,10 +11,12 @@ namespace {
 // Turns a root score from an iteration of `depth` into SearchInfo::mate.
 // A win found with `d` depth left scores WIN + d and happens at ply
 // depth - d, counted from 0 at the root; even plies are the root side's.
+// eval's loss one ply past the horizon makes d = -1 possible, so the proven
+// range starts at WIN - 1.
 int mate_distance(Score score, int depth) {
-  if (score >= WIN)
+  if (score >= WIN - 1)
     return (depth - (score - WIN)) / 2 + 1;
-  if (score <= -WIN)
+  if (score <= -(WIN - 1))
     return -((depth - (-score - WIN) + 1) / 2);
   return 0;
 }
