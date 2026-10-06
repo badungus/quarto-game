@@ -73,7 +73,8 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
     while (avail) {
       Piece piece = std::countr_zero(avail);
       pos.give_piece(piece);
-      Score score = -negamax(pos, depth - 1, -INF, INF);
+      // Root window (best - 1, INF), see the placement loop below.
+      Score score = -negamax(pos, depth - 1, -INF, Score(1 - best));
       pos.undo_give_piece();
       if (score > best) {
         best = score;
@@ -103,15 +104,17 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
       return {{0, {cell, -1}}};
     }
     // Score every piece we could hand over after this placement and keep the
-    // best {cell, piece} pairs. Searched with a full window on purpose: a
-    // narrowed beta makes a fail-high indistinguishable from an exact tie, and
-    // the tie would then be picked at random against a genuinely better move.
+    // best {cell, piece} pairs. Root window (best - 1, INF): a worse move
+    // fails low at <= best - 1 and is cut off early, while a tie (== best)
+    // or a better move (beta is INF) still gets its exact score. Raising
+    // alpha to best instead would make a tie indistinguishable from a worse
+    // move.
     if (!stop_) {
       Bitboard avail = pos.available();
       while (avail) {
         Piece piece = std::countr_zero(avail);
         pos.give_piece(piece);
-        Score score = -negamax(pos, depth - 1, -INF, INF);
+        Score score = -negamax(pos, depth - 1, -INF, Score(1 - best));
         pos.undo_give_piece();
         if (score > best) {
           best = score;
