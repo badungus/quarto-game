@@ -97,3 +97,10 @@ constexpr float ENGINE_OUTPUT_PLAYER_2_X =
 constexpr float ENGINE_OUTPUT_Y =
     PLAYER_NAME_Y + PLAYER_NAME_HEIGHT + UI_SPACING;
 constexpr float ENGINE_OUTPUT_SIZE = 12;
+constexpr float ENGINE_OUTPUT_LINE = 0.7f * UI_SPACING;
+// Up to the spacing before player one's evalbar; player two's column is just
+// as wide.
+constexpr float ENGINE_OUTPUT_WIDTH =
+    EVALBAR_1_X - UI_SPACING - ENGINE_OUTPUT_PLAYER_1_X;
+// Output stops where the evalbars end, inside the player panels.
+constexpr float ENGINE_OUTPUT_BOTTOM = EVALBAR_Y + EVALBAR_HEIGHT;

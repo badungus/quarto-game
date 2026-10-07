@@ -20,4 +20,5 @@ public:
   void update(const Input &in);
   void draw() const { button_.draw(); }
   const std::string &value() const { return value_; }
+  void set_value(std::string value) { value_ = std::move(value); }
 };

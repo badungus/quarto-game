@@ -119,6 +119,25 @@ Action EngineMatch::update(const Input &in) {
   return {std::nullopt, ScreenId::Result};
 }
 
+void EngineMatch::load_config() {
+  const Seat *seats[2] = {&match_config_.player_1, &match_config_.player_2};
+  Dropdown *dropdowns[2] = {&player_1_dd_, &player_2_dd_};
+  for (int p = 0; p < 2; ++p) {
+    settings_[p] = match_config_.settings[p];
+    // Toggles show settings_ on their next update; fields keep their own copy.
+    for (size_t i = 0; i < ENGINE_SETTINGS.size(); ++i)
+      if (auto *field = std::get_if<TextField>(&settings_ui_[p][i]))
+        field->set_value(settings_[p][i]);
+
+    if (const auto *seat = std::get_if<EngineSeat>(seats[p]))
+      for (int k = 0; k < ENGINE_COUNT; ++k)
+        if (ENGINES[k].executable == seat->executable) {
+          engines_[p] = k;
+          dropdowns[p]->set_content(ENGINES[k].name);
+        }
+  }
+}
+
 void EngineMatch::log(std::string line) {
   log_.push_back(std::move(line));
   // Keep a scrolled-back view where it is.

@@ -7,6 +7,7 @@
 #include "match_config.hpp"
 #include "match_controller.hpp"
 #include "types.hpp"
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -32,6 +33,22 @@ std::string info_text(const EngineInfo &info) {
   const std::string prefix = "info ";
   return info.raw.starts_with(prefix) ? info.raw.substr(prefix.size())
                                       : info.raw;
+}
+
+// The label centred in width with a rule filling each side, so every move
+// indicator spans exactly the output width whatever its number. Screen pixels.
+void draw_move_header(const std::string &label, float x, float y, float width,
+                      int font_size, Color color) {
+  const float gap = font_size / 2.0f;
+  const float thickness = std::max(1.0f, font_size / 12.0f);
+  const float label_width = MeasureText(label.c_str(), font_size);
+  const float label_x = x + (width - label_width) / 2;
+  const float rule_y = y + (font_size - thickness) / 2;
+  const float rule_width = label_x - gap - x;
+  DrawRectangleRec({x, rule_y, rule_width, thickness}, color);
+  DrawRectangleRec({x + width - rule_width, rule_y, rule_width, thickness},
+                   color);
+  DrawText(label.c_str(), (int)label_x, (int)y, font_size, color);
 }
 } // namespace
 
@@ -102,6 +119,13 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
 }
 
 Action GameScreen::update(const Input &in) {
+  // The wheel scrolls the engine output of the player panel under the mouse.
+  int wheel = 3 * (int)GetMouseWheelMove();
+  if (in.mouse.x < PLAYER_1_X + PLAYER_WIDTH)
+    output_scroll_[0] = std::max(0, output_scroll_[0] + wheel);
+  else if (in.mouse.x >= PLAYER_2_X)
+    output_scroll_[1] = std::max(0, output_scroll_[1] + wheel);
+
   // board buttons
   std::optional<Command> command = std::nullopt;
   for (Cell i = 0; i < 16; ++i) {
@@ -339,25 +363,7 @@ void GameScreen::draw_player() {
                       eval_1_background_dest, {0, 0}, 0.0f, WHITE);
     DrawTextureNPatch(evalbar, evalbar_patch, eval_1_dest, {0, 0}, 0.0f, WHITE);
 
-    float engine_output_1_y = ENGINE_OUTPUT_Y;
-    for (int i = 0; i < 17; ++i) {
-      if (info_player_1[i].empty())
-        continue;
-      std::string new_move =
-          "------------Move: " + std::to_string(i + 1) + "-------------";
-      DrawText(new_move.c_str(), ENGINE_OUTPUT_PLAYER_1_X * s,
-               engine_output_1_y * s, ENGINE_OUTPUT_SIZE * s,
-               GetColor(0x1E1E1EFF));
-      engine_output_1_y += 0.7 * UI_SPACING;
-      for (auto &output : info_player_1[i]) {
-
-        DrawText(info_text(output).c_str(), ENGINE_OUTPUT_PLAYER_1_X * s,
-                 engine_output_1_y * s, ENGINE_OUTPUT_SIZE * s,
-                 GetColor(0x1E1E1EFF));
-
-        engine_output_1_y += 0.7f * UI_SPACING;
-      }
-    }
+    draw_engine_output(info_player_1, ENGINE_OUTPUT_PLAYER_1_X, 0);
   };
 
   if (std::holds_alternative<HumanSeat>(
@@ -379,27 +385,50 @@ void GameScreen::draw_player() {
                       eval_2_background_dest, {0, 0}, 0.0f, WHITE);
     DrawTextureNPatch(evalbar, evalbar_patch, eval_2_dest, {0, 0}, 0.0f, WHITE);
 
-    float engine_output_2_y = ENGINE_OUTPUT_Y;
-    for (int i = 0; i < 17; ++i) {
-      if (info_player_2[i].empty())
-        continue;
-      std::string new_move =
-          "------------Move: " + std::to_string(i + 1) + "-------------";
-      DrawText(new_move.c_str(), ENGINE_OUTPUT_PLAYER_2_X * s,
-               engine_output_2_y * s, ENGINE_OUTPUT_SIZE * s,
-               GetColor(0x1E1E1EFF));
-      engine_output_2_y += 0.7 * UI_SPACING;
-      for (auto &output : info_player_2[i]) {
-
-        DrawText(info_text(output).c_str(), ENGINE_OUTPUT_PLAYER_2_X * s,
-                 engine_output_2_y * s, ENGINE_OUTPUT_SIZE * s,
-                 GetColor(0x1E1E1EFF));
-
-        engine_output_2_y += 0.7f * UI_SPACING;
-      }
-    }
+    draw_engine_output(info_player_2, ENGINE_OUTPUT_PLAYER_2_X, 1);
   };
 };
+
+// Draws the end of the output that fits above ENGINE_OUTPUT_BOTTOM, moved back
+// by the player's scroll.
+void GameScreen::draw_engine_output(
+    const std::array<std::vector<EngineInfo>, 17> &info, float x, int player) {
+  struct Line {
+    std::string text;
+    bool header; // drawn as a move indicator
+  };
+  std::vector<Line> lines;
+  for (int i = 0; i < 17; ++i) {
+    if (info[i].empty())
+      continue;
+    lines.push_back({"Move: " + std::to_string(i + 1), true});
+    for (const EngineInfo &output : info[i])
+      lines.push_back({info_text(output), false});
+  }
+
+  constexpr int visible =
+      (int)((ENGINE_OUTPUT_BOTTOM - ENGINE_OUTPUT_Y) / ENGINE_OUTPUT_LINE);
+  int &scroll = output_scroll_[player];
+  const int count = lines.size();
+  if (scroll > 0 && count > output_lines_[player])
+    scroll += count - output_lines_[player];
+  output_lines_[player] = count;
+  scroll = std::clamp(scroll, 0, std::max(0, count - visible));
+
+  const int last = count - scroll;
+  const int first = std::max(0, last - visible);
+  const float s = ui_scale();
+  const int font_size = (int)(ENGINE_OUTPUT_SIZE * s);
+  const Color color = GetColor(0x1E1E1EFF);
+  for (int i = first; i < last; ++i) {
+    const float y = (ENGINE_OUTPUT_Y + (i - first) * ENGINE_OUTPUT_LINE) * s;
+    if (lines[i].header)
+      draw_move_header(lines[i].text, x * s, y, ENGINE_OUTPUT_WIDTH * s,
+                       font_size, color);
+    else
+      DrawText(lines[i].text.c_str(), x * s, y, font_size, color);
+  }
+}
 
 void GameScreen::draw_buttons() {
   undo_.draw();

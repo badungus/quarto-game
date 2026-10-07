@@ -51,6 +51,8 @@ void Screen::update(const Input &in) {
   }
   if (current_ == ScreenId::Result && screen != ScreenId::Result)
     engine_match_.stop();
+  else if (current_ != ScreenId::Result && screen == ScreenId::Result)
+    engine_match_.load_config();
   current_ = screen;
 }
 

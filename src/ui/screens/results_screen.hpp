@@ -70,6 +70,9 @@ public:
               MatchConfig &match_config, const Assets &assets);
   Action update(const Input &in);
   void draw();
+  // Takes the main menu's settings, and its engines where it picked engines,
+  // as the starting setup. Called when the screen is entered.
+  void load_config();
   // Abandons the match, e.g. because the screen was left.
   void stop();
   bool running() const { return running_; }
