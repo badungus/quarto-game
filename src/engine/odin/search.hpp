@@ -57,7 +57,8 @@ private:
 
   // Scores every legal root move at `depth` and returns all moves tied for
   // the best score (never empty).
-  std::vector<Result> negamax_root(Position &pos, int depth);
+  // `first` (the previous iteration's pick) is searched first.
+  std::vector<Result> negamax_root(Position &pos, int depth, Move first);
   // Fail-hard alpha-beta score of `pos` for the side to move.
   Score negamax(Position &, int depth, Score alpha, Score beta);
 

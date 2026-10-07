@@ -13,6 +13,7 @@ using Score = std::int16_t;
 struct Move {
   Cell cell;
   Piece give;
+  bool operator==(const Move &) const = default;
 }; // a Quarto move is ALWAYS this pair
 struct Undo {
   Cell cell;
@@ -27,9 +28,11 @@ struct TTEntry {
   uint8_t depth;
   Move move;
   Bound bound;
+  uint8_t gen; // search that stored it, see TranspositionTable::new_search
 };
 
 constexpr Score WIN = 10000;
 constexpr Score INF = 32000;
+constexpr Move EMPTY_MOVE = {-1, -1};
 
 } // namespace quarto

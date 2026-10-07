@@ -28,24 +28,24 @@ int mate_distance(Score score, const Position &pos) {
     return -((WIN + score - first + 1) / 2);
   return 0;
 }
+
+int pop_first(Bitboard &set, int first) {
+  int i = (first >= 0 && (set >> first & 1)) ? first : std::countr_zero(set);
+  set &= ~(Bitboard{1} << i);
+  return i;
+}
 } // namespace
 
 Result Search::search(Position &pos, int depth, InfoFn cb) {
   nodes_ = 0;
   start_time_ = std::chrono::steady_clock::now();
+  tt_.new_search();
 
-  // negamax_root never returns an empty list, so one pick per iteration is
-  // always valid. The same pick is reported and returned.
   Result best{0, {-1, -1}};
   for (int i = 1; i <= depth && !stop_; ++i) {
-    std::vector<Result> best_moves = negamax_root(pos, i);
+    std::vector<Result> best_moves = negamax_root(pos, i, best.move);
     if (!stop_) {
-      // Plain modulo instead of uniform_int_distribution: the distribution's
-      // output differs between standard libraries, this does not. The bias is
-      // negligible for at most 240 moves.
       best = best_moves[gen_() % best_moves.size()]; // one of the best moves
-      // A proven result cannot change with more depth. The score is reported
-      // as plain +-WIN; the distance goes into `mate`.
       int mate = mate_distance(best.score, pos);
       if (mate != 0) {
         stop_ = true;
@@ -58,7 +58,7 @@ Result Search::search(Position &pos, int depth, InfoFn cb) {
   return best;
 }
 
-std::vector<Result> Search::negamax_root(Position &pos, int depth) {
+std::vector<Result> Search::negamax_root(Position &pos, int depth, Move first) {
   ++nodes_;
 
   if ((nodes_ & 4095) == 0) {
@@ -71,6 +71,7 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
   Score best = -INF;
 
   std::vector<Result> best_moves;
+  bool any_safe = false; // some placement left a give that does not lose
 
   if (empty == 0)
     return {{0, {-1, -1}}}; // board full
@@ -79,7 +80,7 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
       !stop_) { // starting position, no valid place for hand
     Bitboard avail = pos.available();
     while (avail) {
-      Piece piece = std::countr_zero(avail);
+      Piece piece = pop_first(avail, first.give);
       pos.give_piece(piece);
       // Root window (best - 1, INF), see the placement loop below.
       Score score = -negamax(pos, depth - 1, -INF, Score(1 - best));
@@ -91,7 +92,6 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
       } else if (score == best) {
         best_moves.push_back({score, {-1, piece}});
       }
-      avail &= (avail - 1);
     }
     // Nothing in hand means there is nothing to place: giving is the only move.
     if (best_moves.empty())
@@ -100,7 +100,7 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
   }
 
   while (empty) {
-    Cell cell = std::countr_zero(empty); // C++20
+    Cell cell = pop_first(empty, first.cell);
     pos.place_piece(cell);
     if (move_wins(pos, cell)) { // An outright win
       pos.undo_place_piece();
@@ -111,16 +111,13 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
       pos.undo_place_piece();
       return {{0, {cell, -1}}};
     }
-    // Score every piece we could hand over after this placement and keep the
-    // best {cell, piece} pairs. Root window (best - 1, INF): a worse move
-    // fails low at <= best - 1 and is cut off early, while a tie (== best)
-    // or a better move (beta is INF) still gets its exact score. Raising
-    // alpha to best instead would make a tie indistinguishable from a worse
-    // move.
+
     if (!stop_) {
-      Bitboard avail = pos.available();
+      Bitboard safe_gives = ~winning_pieces(pos);
+      Bitboard avail = safe_gives & pos.available();
       while (avail) {
-        Piece piece = std::countr_zero(avail);
+        Piece piece = pop_first(avail, cell == first.cell ? first.give : -1);
+        any_safe = true;
         pos.give_piece(piece);
         Score score = -negamax(pos, depth - 1, -INF, Score(1 - best));
         pos.undo_give_piece();
@@ -131,11 +128,19 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
         } else if (score == best) {
           best_moves.push_back({score, {cell, piece}});
         }
-        avail &= (avail - 1);
       }
     }
     pos.undo_place_piece();
-    empty &= (empty - 1); // clear lowest set bit
+  }
+
+  // No placement leaves a safe give: every move loses at once, so all of them
+  // tie at that loss (negamax only searches safe gives, so none were scored).
+  if (!any_safe && !stop_) {
+    Score loss = Score(-(win_score(pos) - 1));
+    for (Bitboard e = pos.empty_cells(); e; e &= (e - 1))
+      for (Bitboard a = pos.available(); a; a &= (a - 1))
+        best_moves.push_back(
+            {loss, {Cell(std::countr_zero(e)), Piece(std::countr_zero(a))}});
   }
 
   if (best_moves.empty())
@@ -154,20 +159,14 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     } // check if movetime has been reached
   }
 
-  // Look for a win on every cell before searching any of them, so a losing
-  // give from the parent costs a few win checks instead of whole subtrees.
-  // Checked before the horizon too: a win is final at any depth, and eval
-  // assumes the piece in hand cannot win.
-  if (hand_wins(pos))
-    return win_score(pos);
-
   Key key = pos.hash();
-  if (const TTEntry *entry = tt_.probe(key)) {
+  const TTEntry *entry = tt_.probe(key);
+  Move entry_move = entry == nullptr ? EMPTY_MOVE : entry->move;
+  if (entry) {
     // A proven win as a lower bound or a proven loss as an upper bound is the
     // true game result, so it holds at any depth; the opposite bounds do not.
-    bool proven =
-        (entry->bound != Bound::Upper && entry->score >= PROVEN) ||
-        (entry->bound != Bound::Lower && entry->score <= -PROVEN);
+    bool proven = (entry->bound != Bound::Upper && entry->score >= PROVEN) ||
+                  (entry->bound != Bound::Lower && entry->score <= -PROVEN);
     if (entry->depth >= depth || proven) {
       if (entry->bound == Bound::Exact)
         return entry->score;
@@ -181,21 +180,25 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   if (depth == 0 || stop_)
     return eval(pos);
 
+  // One cell left: placing fills the board, and the parent made sure the piece
+  // in hand cannot win there, so it is a draw.
+  if (std::popcount(pos.occupied()) == 15)
+    return 0;
+
   Score alpha_orig = alpha;
   // No placement below can win anymore, so the loop skips the win check.
-  Move best_move{-1, -1};
+  Move best_move = EMPTY_MOVE;
+  bool any_safe = false; // some placement left a give that does not lose
   Bitboard empty = pos.empty_cells(); // snapshot, before any place
   while (empty) {
-    Cell cell = std::countr_zero(empty); // C++20
+    // The TT move's cell first, and its piece first within that cell.
+    Cell cell = pop_first(empty, entry_move.cell);
     pos.place_piece(cell);
-    if (pos.empty_cells() == 0) { // board full: draw
-      pos.undo_place_piece();
-      return 0;
-    }
-
-    Bitboard avail = pos.available();
+    Bitboard avail = pos.available() & ~winning_pieces(pos);
     while (avail) {
-      Piece piece = std::countr_zero(avail);
+      Piece piece =
+          pop_first(avail, cell == entry_move.cell ? entry_move.give : -1);
+      any_safe = true;
       pos.give_piece(piece);
       Score score = -negamax(pos, depth - 1, -beta, -alpha);
       pos.undo_give_piece();
@@ -209,10 +212,15 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
           tt_.store(key, alpha, depth, {cell, piece}, Bound::Lower);
         return alpha;
       }
-      avail &= (avail - 1);
     }
     pos.undo_place_piece();
-    empty &= (empty - 1);
+  }
+  // Every give, after every placement, lets the opponent win with the next
+  // piece: an exact loss, independent of depth.
+  if (!any_safe) {
+    Score loss = Score(-(win_score(pos) - 1));
+    tt_.store(key, loss, depth, EMPTY_MOVE, Bound::Exact);
+    return loss;
   }
   if (!stop_)
     tt_.store(key, alpha, depth, best_move,

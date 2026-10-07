@@ -31,4 +31,6 @@ Score win_score(const Position &pos);
 // board), else 0.
 Score eval(Position &pos);
 
+Bitboard winning_pieces(Position &pos);
+
 } // namespace quarto

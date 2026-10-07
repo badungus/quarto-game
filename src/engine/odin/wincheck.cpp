@@ -56,19 +56,32 @@ Score eval(Position &pos) {
     Cell cell = std::countr_zero(empty);
     pos.place_piece(cell);
     Bitboard avail = pos.available();
-    bool safe = avail == 0; // no piece left to give: the board is full, draw
-    while (avail && !safe) {
-      pos.give_piece(std::countr_zero(avail));
-      safe = !hand_wins(pos);
-      pos.undo_give_piece();
-      avail &= (avail - 1);
-    }
+    // No piece left to give means the board is full: a draw, not a loss.
+    bool safe = avail == 0 || (avail & ~winning_pieces(pos)) != 0;
     pos.undo_place_piece();
     if (safe)
       return 0;
     empty &= (empty - 1);
   }
   return Score(-(win_score(pos) - 1));
+}
+
+Bitboard winning_pieces(Position &pos) {
+  Bitboard occ = pos.occupied();
+  Bitboard wins = 0;
+  for (Bitboard line : LINES) {
+    Bitboard filled = line & occ;
+    if (std::popcount(filled) != 3)
+      continue;
+    for (int i = 0; i < 4; ++i) {
+      Bitboard with = pos.props()[i] & filled;
+      if (with == filled)
+        wins |= HAS_PROP[i];
+      else if (with == 0)
+        wins |= ~HAS_PROP[i];
+    }
+  }
+  return wins;
 }
 
 } // namespace quarto

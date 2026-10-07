@@ -23,8 +23,8 @@ void TranspositionTable::clear() {
 void TranspositionTable::store(Key key, Score score, uint8_t depth, Move move,
                                Bound bound) {
   TTEntry &entry = table_[key & mask_];
-  if (entry.key == 0 || depth >= entry.depth) {
-    entry = TTEntry{key, score, depth, move, bound};
+  if (entry.key == 0 || entry.gen != gen_ || depth >= entry.depth) {
+    entry = TTEntry{key, score, depth, move, bound, gen_};
   }
 };
 }; // namespace quarto
