@@ -219,8 +219,8 @@ OptionalMove EnginePlayer::parse_move(std::string move_string) {
 
 std::string EnginePlayer::format_position() {
 
-  const std::array<char, 4> upper = {'S', 'C', 'H', 'F'};
-  const std::array<char, 4> lower = {'s', 'c', 'h', 'f'};
+  const std::array<char, 4> upper = {'C', 'H', 'S', 'F'};
+  const std::array<char, 4> lower = {'c', 'h', 's', 'f'};
   std::string position = "";
   int cell_counter = 0;
   for (const Piece &p : game_.board()) {

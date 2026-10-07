@@ -17,7 +17,7 @@ BUILD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "build")
 
 
 def name(p):
-    return "".join(("SCHF" if p >> i & 1 else "schf")[i] for i in range(4))
+    return "".join(("CHSF" if p >> i & 1 else "chsf")[i] for i in range(4))
 
 
 def parse_piece(s):

@@ -256,7 +256,7 @@ and responsibilities. Use short code excerpts only where they make a point clear
   (`S/s C/c H/h F/f`, upper case = property bit set), `.` marks an empty cell, and
   `|` is followed by the piece in hand or `-`. The input is checked with a regular
   expression.
-  Example: `ScHfschf../ScHF..scHF/..../...schF|-`.
+  Example: `ChSfchsf../ChSF..chSF/..../...chsF|-`.
 - **Move notation:** `<cell>|<piece>`, e.g. `c3|sCHf`. `-` means no placement
   (opening move) or no give (game over), and `#` marks a winning placement.
 - Cell mapping: cell 12 = a1 (rows run top to bottom, ranks bottom to top).

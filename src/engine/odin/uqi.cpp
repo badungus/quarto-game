@@ -143,7 +143,7 @@ void uqi_loop(Engine &engine) {
 }
 
 // default: ..../..../..../....|-
-// example: ScHfschf../ScHF..scHF/..../...schF|-
+// example: ChSfchsf../ChSF..chSF/..../...chsF|-
 std::tuple<Bitboard, std::array<Bitboard, 4>, Piece>
 parse_position(const std::string &input) {
   Bitboard occ = 0;
@@ -197,8 +197,8 @@ std::string format_move(Move m, bool mate) {
   if (m.give < 0) {
     move_string += mate ? '#' : '-';
   } else {
-    const std::array<char, 4> upper = {'S', 'C', 'H', 'F'};
-    const std::array<char, 4> lower = {'s', 'c', 'h', 'f'};
+    const std::array<char, 4> upper = {'C', 'H', 'S', 'F'};
+    const std::array<char, 4> lower = {'c', 'h', 's', 'f'};
 
     for (int i = 0; i < 4; ++i) {
       move_string += (m.give & (1 << i)) ? upper[i] : lower[i];
