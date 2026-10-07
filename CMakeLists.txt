@@ -32,6 +32,8 @@ add_subdirectory(src/engine/thor)
 
 add_subdirectory(src/engine/odin)
 
+add_subdirectory(src/engine/baldur)
+
 add_executable(quarto
     src/main.cpp
     src/game/game_state.cpp
@@ -65,4 +67,4 @@ target_include_directories(quarto PRIVATE
 target_link_libraries(quarto PRIVATE raylib tiny-process-library::tiny-process-library)
 
 # Building the GUI also builds the engine it launches.
-add_dependencies(quarto thor odin)
+add_dependencies(quarto thor odin baldur)

@@ -30,7 +30,7 @@ bool move_wins(const Position &p, Cell cell) {
   return move_wins(cell, p.occupied(), p.props());
 }
 
-Score eval(Position &pos) {
+bool hand_wins(Position &pos) {
   Bitboard empty = pos.empty_cells();
   while (empty) {
     Cell cell = std::countr_zero(empty);
@@ -38,10 +38,36 @@ Score eval(Position &pos) {
     bool win = move_wins(pos, cell);
     pos.undo_place_piece();
     if (win)
-      return WIN;
+      return true;
     empty &= (empty - 1);
   }
-  return 0;
+  return false;
+}
+
+Score eval(Position &pos) {
+  if (hand_wins(pos))
+    return WIN;
+
+  // Lost if every placement + give lets the opponent win at once. That win
+  // is one ply past this node, hence WIN - 1 (see mate_distance).
+  Bitboard empty = pos.empty_cells();
+  while (empty) {
+    Cell cell = std::countr_zero(empty);
+    pos.place_piece(cell);
+    Bitboard avail = pos.available();
+    bool safe = avail == 0; // no piece left to give: the board is full, draw
+    while (avail && !safe) {
+      pos.give_piece(std::countr_zero(avail));
+      safe = !hand_wins(pos);
+      pos.undo_give_piece();
+      avail &= (avail - 1);
+    }
+    pos.undo_place_piece();
+    if (safe)
+      return 0;
+    empty &= (empty - 1);
+  }
+  return -(WIN - 1);
 }
 
 } // namespace quarto

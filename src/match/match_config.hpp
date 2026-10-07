@@ -14,8 +14,18 @@ struct EngineSeat {
 inline constexpr std::array ENGINES{
     EngineSeat{"Thor", "thor"},
     EngineSeat{"Odin", "odin"},
+    EngineSeat{"Baldur", "baldur"},
 };
-inline constexpr std::array ENGINE_NAMES = {ENGINES[0].name, ENGINES[1].name};
+constexpr auto make_engine_names() {
+  std::array<std::string, ENGINES.size()> result{};
+
+  for (std::size_t i = 0; i < ENGINES.size(); ++i)
+    result[i] = ENGINES[i].name;
+
+  return result;
+}
+
+inline constexpr auto ENGINE_NAMES = make_engine_names();
 
 constexpr auto make_players() {
   std::array<std::string, ENGINES.size() + 1> result{"PLAYER"};
