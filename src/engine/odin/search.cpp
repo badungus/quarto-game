@@ -1,23 +1,31 @@
 #include "search.hpp"
+#include "types.hpp"
 #include "wincheck.hpp"
 
 #include <algorithm>
 #include <bit>
 #include <chrono>
+#include <numbers>
 
 namespace quarto {
 
 namespace {
-// Turns a root score from an iteration of `depth` into SearchInfo::mate.
-// A win found with `d` depth left scores WIN + d and happens at ply
-// depth - d, counted from 0 at the root; even plies are the root side's.
-// eval's loss one ply past the horizon makes d = -1 possible, so the proven
-// range starts at WIN - 1.
-int mate_distance(Score score, int depth) {
-  if (score >= WIN - 1)
-    return (depth - (score - WIN)) / 2 + 1;
-  if (score <= -(WIN - 1))
-    return -((depth - (-score - WIN) + 1) / 2);
+// A win scores WIN - n with n the pieces on the board after it (see
+// win_score), and a full board holds 16, so every proven score is at least
+// this far from 0. Non-proven scores are 0.
+constexpr Score PROVEN = WIN - 16;
+
+// Turns a root score into SearchInfo::mate. A win that leaves n pieces on the
+// board is placed at ply n - first, counted from 0 at the root, where `first`
+// is the piece count after the root's first placement; even plies are the
+// root side's. At the opening the root only gives, so the opponent places
+// piece 1 at ply 1.
+int mate_distance(Score score, const Position &pos) {
+  int first = std::popcount(pos.occupied()) + (pos.in_hand() >= 0 ? 1 : 0);
+  if (score >= PROVEN)
+    return (WIN - score - first) / 2 + 1;
+  if (score <= -PROVEN)
+    return -((WIN + score - first + 1) / 2);
   return 0;
 }
 } // namespace
@@ -38,7 +46,7 @@ Result Search::search(Position &pos, int depth, InfoFn cb) {
       best = best_moves[gen_() % best_moves.size()]; // one of the best moves
       // A proven result cannot change with more depth. The score is reported
       // as plain +-WIN; the distance goes into `mate`.
-      int mate = mate_distance(best.score, i);
+      int mate = mate_distance(best.score, pos);
       if (mate != 0) {
         stop_ = true;
         best.score = mate > 0 ? WIN : -WIN;
@@ -96,7 +104,7 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth) {
     pos.place_piece(cell);
     if (move_wins(pos, cell)) { // An outright win
       pos.undo_place_piece();
-      return {{Score(WIN + depth), {cell, -1}}}; // same scale as negamax
+      return {{win_score(pos), {cell, -1}}}; // same scale as negamax
     }
 
     if (pos.empty_cells() == 0) { // draw
@@ -146,17 +154,36 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     } // check if movetime has been reached
   }
 
+  // Look for a win on every cell before searching any of them, so a losing
+  // give from the parent costs a few win checks instead of whole subtrees.
+  // Checked before the horizon too: a win is final at any depth, and eval
+  // assumes the piece in hand cannot win.
+  if (hand_wins(pos))
+    return win_score(pos);
+
+  Key key = pos.hash();
+  if (const TTEntry *entry = tt_.probe(key)) {
+    // A proven win as a lower bound or a proven loss as an upper bound is the
+    // true game result, so it holds at any depth; the opposite bounds do not.
+    bool proven =
+        (entry->bound != Bound::Upper && entry->score >= PROVEN) ||
+        (entry->bound != Bound::Lower && entry->score <= -PROVEN);
+    if (entry->depth >= depth || proven) {
+      if (entry->bound == Bound::Exact)
+        return entry->score;
+      if (entry->bound == Bound::Lower && entry->score >= beta)
+        return entry->score;
+      if (entry->bound == Bound::Upper && entry->score <= alpha)
+        return entry->score;
+    }
+  }
+
   if (depth == 0 || stop_)
     return eval(pos);
 
-  // Look for a win on every cell before searching any of them, so a losing
-  // give from the parent costs a few win checks instead of whole subtrees.
-  // depth counts down from the root, so a win found with more depth left is
-  // a faster win and scores higher.
-  if (hand_wins(pos))
-    return WIN + depth;
-
+  Score alpha_orig = alpha;
   // No placement below can win anymore, so the loop skips the win check.
+  Move best_move{-1, -1};
   Bitboard empty = pos.empty_cells(); // snapshot, before any place
   while (empty) {
     Cell cell = std::countr_zero(empty); // C++20
@@ -172,9 +199,14 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
       pos.give_piece(piece);
       Score score = -negamax(pos, depth - 1, -beta, -alpha);
       pos.undo_give_piece();
-      alpha = std::max(alpha, score);
+      if (score > alpha) {
+        alpha = score;
+        best_move = {cell, piece};
+      }
       if (alpha >= beta) {
         pos.undo_place_piece();
+        if (!stop_)
+          tt_.store(key, alpha, depth, {cell, piece}, Bound::Lower);
         return alpha;
       }
       avail &= (avail - 1);
@@ -182,6 +214,9 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     pos.undo_place_piece();
     empty &= (empty - 1);
   }
+  if (!stop_)
+    tt_.store(key, alpha, depth, best_move,
+              alpha > alpha_orig ? Bound::Exact : Bound::Upper);
   return alpha;
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "position.hpp"
+#include "tt.hpp"
 #include "types.hpp"
 #include <atomic>
 #include <chrono>
@@ -52,6 +53,7 @@ private:
   // seed_ is declared first because gen_ is initialised from it.
   std::uint64_t seed_ = std::random_device{}();
   std::mt19937_64 gen_{seed_};
+  TranspositionTable &tt_; // owned by Engine, shared across searches
 
   // Scores every legal root move at `depth` and returns all moves tied for
   // the best score (never empty).
@@ -60,6 +62,7 @@ private:
   Score negamax(Position &, int depth, Score alpha, Score beta);
 
 public:
+  Search(TranspositionTable &tt) : tt_(tt) {};
   Result search(Position &pos, int depth, InfoFn cb);
   // Time budget for the next search(), in milliseconds.
   void set_movetime(int movetime) { movetime_ = movetime; }

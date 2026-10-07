@@ -8,6 +8,9 @@
 
 namespace quarto {
 
+Engine::Engine() : tt_(DEFAULT_TT_SIZE), search_(tt_) {
+  set_position(DEFAULT_POSITION);
+}
 void Engine::go(SearchCallbacks callback) {
   stop(); // only one search at a time
   if (search_thread_.joinable())

@@ -1,6 +1,7 @@
 #pragma once
 #include "position.hpp"
 #include "search.hpp"
+#include "tt.hpp"
 #include "types.hpp"
 #include <array>
 #include <climits>
@@ -15,6 +16,7 @@ namespace quarto {
 const int DEFAULT_MOVETIME = INT_MAX;
 const bool DEFAULT_INFINITE = false;
 const int DEFAULT_DEPTH = 16;
+const int DEFAULT_TT_SIZE = 64;
 const std::tuple<Bitboard, std::array<Bitboard, 4>, Piece> DEFAULT_POSITION = {
     0xffff, {0, 0, 0, 0}, -1};
 
@@ -42,11 +44,12 @@ private:
   // The startup seed counts as new, so the first go reports it too.
   bool seed_reported_ = false;
   Position pos_;
+  TranspositionTable tt_; // declared before search_, which refers to it
   Search search_;
   std::jthread search_thread_; // declared last: joins before the rest is gone
 
 public:
-  Engine() { set_position(DEFAULT_POSITION); }
+  Engine();
   ~Engine() { stop(); }
   void stop();
   void set_position(std::tuple<Bitboard, std::array<Bitboard, 4>, Piece> pos);

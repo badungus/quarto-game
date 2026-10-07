@@ -44,12 +44,13 @@ bool hand_wins(Position &pos) {
   return false;
 }
 
-Score eval(Position &pos) {
-  if (hand_wins(pos))
-    return WIN;
+Score win_score(const Position &pos) {
+  return Score(WIN - (std::popcount(pos.occupied()) + 1));
+}
 
+Score eval(Position &pos) {
   // Lost if every placement + give lets the opponent win at once. That win
-  // is one ply past this node, hence WIN - 1 (see mate_distance).
+  // puts one more piece on the board than a win from here would.
   Bitboard empty = pos.empty_cells();
   while (empty) {
     Cell cell = std::countr_zero(empty);
@@ -67,7 +68,7 @@ Score eval(Position &pos) {
       return 0;
     empty &= (empty - 1);
   }
-  return -(WIN - 1);
+  return Score(-(win_score(pos) - 1));
 }
 
 } // namespace quarto
