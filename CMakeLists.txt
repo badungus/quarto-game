@@ -34,6 +34,8 @@ add_subdirectory(src/engine/odin)
 
 add_subdirectory(src/engine/baldur)
 
+add_subdirectory(src/solver)
+
 add_executable(quarto
     src/main.cpp
     src/game/game_state.cpp

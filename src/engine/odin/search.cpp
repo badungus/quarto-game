@@ -1,11 +1,9 @@
 #include "search.hpp"
+#include "canonical.hpp"
 #include "types.hpp"
 #include "wincheck.hpp"
-
-#include <algorithm>
 #include <bit>
 #include <chrono>
-#include <numbers>
 
 namespace quarto {
 
@@ -14,6 +12,14 @@ namespace {
 // win_score), and a full board holds 16, so every proven score is at least
 // this far from 0. Non-proven scores are 0.
 constexpr Score PROVEN = WIN - 16;
+
+// Positions with at most this many pieces on the board are keyed by their
+// canonical form, so equivalent positions share a TT entry; deeper ones by
+// the free incremental Zobrist key, since canonicalize costs a few hundred
+// operations and transpositions through symmetry get rarer and cheaper with
+// depth. The piece count decides, so a position always gets the same kind of
+// key. Tune by benchmark.
+constexpr int CANON_MAX_PIECES = 10;
 
 // Turns a root score into SearchInfo::mate. A win that leaves n pieces on the
 // board is placed at ply n - first, counted from 0 at the root, where `first`
@@ -159,9 +165,25 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     } // check if movetime has been reached
   }
 
-  Key key = pos.hash();
+  const bool canon = std::popcount(pos.occupied()) <= CANON_MAX_PIECES;
+  Canon c{};
+  Key key;
+  if (canon) {
+    c = canonicalize(pos);
+    key = c.key();
+  } else {
+    key = pos.hash();
+  }
+  // A canonical entry is shared by all equivalent positions, so its move is
+  // stored in the canonical frame and mapped back on probe. Storing real
+  // moves there would order the wrong move first in every other equivalent
+  // position: still correct, but much slower.
+  auto to_tt = [&](Move m) { return canon ? to_canonical(m, c) : m; };
+
   const TTEntry *entry = tt_.probe(key);
-  Move entry_move = entry == nullptr ? EMPTY_MOVE : entry->move;
+  Move entry_move = EMPTY_MOVE;
+  if (entry)
+    entry_move = canon ? from_canonical(entry->move, c) : entry->move;
   if (entry) {
     // A proven win as a lower bound or a proven loss as an upper bound is the
     // true game result, so it holds at any depth; the opposite bounds do not.
@@ -177,40 +199,77 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     }
   }
 
-  if (depth == 0 || stop_)
-    return eval(pos);
-
-  // One cell left: placing fills the board, and the parent made sure the piece
-  // in hand cannot win there, so it is a draw.
   if (std::popcount(pos.occupied()) == 15)
     return 0;
 
+  if (depth == 0 || stop_)
+    return eval(pos);
+
   Score alpha_orig = alpha;
-  // No placement below can win anymore, so the loop skips the win check.
+  // No placement below can win anymore, so the loops skip the win check.
   Move best_move = EMPTY_MOVE;
   bool any_safe = false; // some placement left a give that does not lose
-  Bitboard empty = pos.empty_cells(); // snapshot, before any place
-  while (empty) {
-    // The TT move's cell first, and its piece first within that cell.
-    Cell cell = pop_first(empty, entry_move.cell);
-    pos.place_piece(cell);
-    Bitboard avail = pos.available() & ~winning_pieces(pos);
-    while (avail) {
-      Piece piece =
-          pop_first(avail, cell == entry_move.cell ? entry_move.give : -1);
+
+  // Gives `piece` once the placement on `cell` is made, and searches it. True
+  // when it cuts this node off.
+  auto search_give = [&](Cell cell, Piece piece) {
+    pos.give_piece(piece);
+    Score score = -negamax(pos, depth - 1, -beta, -alpha);
+    pos.undo_give_piece();
+    if (score > alpha) {
+      alpha = score;
+      best_move = {cell, piece};
+    }
+    return alpha >= beta;
+  };
+  auto cutoff = [&] {
+    if (!stop_)
+      tt_.store(key, alpha, depth, to_tt(best_move), Bound::Lower);
+    history_[best_move.cell][best_move.give]++;
+    give_history_[best_move.give]++;
+    return alpha;
+  };
+
+  // Stage 1: the TT move, before anything else. It may come from an
+  // equivalent position or, very rarely, a hash collision, so it is checked
+  // first: the cell must be empty, and the piece available and safe after the
+  // placement. Searching an unsafe give would break the invariant that the
+  // piece in hand cannot win.
+  // tt_cell is the TT move's cell, or -1 when there is no TT move to try.
+  const Cell tt_cell = entry_move.cell >= 0 && entry_move.give >= 0 &&
+                               (pos.empty_cells() >> entry_move.cell & 1)
+                           ? entry_move.cell
+                           : Cell(-1);
+  // The safe gives on tt_cell other than the TT give, for stage 2: placing
+  // there was needed anyway to check the TT give, so it is not repeated.
+  Bitboard tt_cell_safe = 0;
+  if (tt_cell >= 0) {
+    pos.place_piece(tt_cell);
+    Bitboard safe = pos.available() & ~winning_pieces(pos);
+    if (safe >> entry_move.give & 1) {
       any_safe = true;
-      pos.give_piece(piece);
-      Score score = -negamax(pos, depth - 1, -beta, -alpha);
-      pos.undo_give_piece();
-      if (score > alpha) {
-        alpha = score;
-        best_move = {cell, piece};
-      }
-      if (alpha >= beta) {
+      if (search_give(tt_cell, entry_move.give)) {
         pos.undo_place_piece();
-        if (!stop_)
-          tt_.store(key, alpha, depth, {cell, piece}, Bound::Lower);
-        return alpha;
+        return cutoff();
+      }
+    }
+    tt_cell_safe = safe & ~(Bitboard{1} << entry_move.give);
+    pos.undo_place_piece();
+  }
+
+  // Stage 2: every other move, cells and pieces in index order.
+  for (Bitboard empty = pos.empty_cells(); empty; empty &= empty - 1) {
+    Cell cell = Cell(std::countr_zero(empty));
+    pos.place_piece(cell);
+    Bitboard avail = cell == tt_cell
+                         ? tt_cell_safe
+                         : Bitboard(pos.available() & ~winning_pieces(pos));
+    if (avail)
+      any_safe = true;
+    for (; avail; avail &= avail - 1) {
+      if (search_give(cell, Piece(std::countr_zero(avail)))) {
+        pos.undo_place_piece();
+        return cutoff();
       }
     }
     pos.undo_place_piece();
@@ -223,7 +282,7 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     return loss;
   }
   if (!stop_)
-    tt_.store(key, alpha, depth, best_move,
+    tt_.store(key, alpha, depth, to_tt(best_move),
               alpha > alpha_orig ? Bound::Exact : Bound::Upper);
   return alpha;
 }
