@@ -100,7 +100,7 @@ Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
   // keeps the bigger subtrees when slots collide.
   const auto depth = std::uint8_t(16 - pieces);
 
-  const std::optional<TTEntry> entry = tt_.probe(key);
+  const std::optional<TTHit> entry = tt_.probe(key);
   Move entry_move = EMPTY_MOVE;
   if (entry) {
     entry_move = canon ? from_canonical(entry->move, c) : entry->move;

@@ -344,7 +344,7 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   // Stored moves are in the frame of the key: canonical or real.
   auto to_tt = [&](Move m) { return canon ? to_canonical(m, c) : m; };
 
-  const std::optional<TTEntry> entry = tt_.probe(key);
+  const std::optional<TTHit> entry = tt_.probe(key);
   Move entry_move = EMPTY_MOVE;
   if (entry)
     entry_move = canon ? from_canonical(entry->move, c) : entry->move;
@@ -587,8 +587,8 @@ usual fix:
 
 ```cpp
 struct Bucket {
-  Packed deep;   // replaced only by deeper entries or an older generation
-  Packed recent; // always replaced
+  Entry deep;   // replaced only by deeper entries or an older generation
+  Entry recent; // always replaced
 };
 ```
 

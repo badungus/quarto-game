@@ -189,7 +189,7 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   // position: still correct, but much slower.
   auto to_tt = [&](Move m) { return canon ? to_canonical(m, c) : m; };
 
-  const std::optional<TTEntry> entry = tt_.probe(key);
+  const std::optional<TTHit> entry = tt_.probe(key);
   Move entry_move = EMPTY_MOVE;
   if (entry)
     entry_move = canon ? from_canonical(entry->move, c) : entry->move;

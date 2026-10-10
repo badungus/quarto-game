@@ -32,7 +32,7 @@ struct TTKey {
 };
 
 // What the TT knows about a position.
-struct TTEntry {
+struct TTHit {
   Score score;
   uint8_t depth;
   Move move;
