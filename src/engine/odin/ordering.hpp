@@ -5,16 +5,8 @@
 
 namespace quarto {
 
-struct ScoredMove {
-  Move move;
-  Score score;
-};
-
-struct MoveList {
-  std::array<ScoredMove, 240> moves;
-  int size;
-};
-
-void generate(Position &pos, MoveList &list);
+Cell best_cell(Bitboard &empty, std::array<std::array<int, 16>, 16> &history,
+               const Piece &hand);
+Piece best_give(Bitboard &avail, std::array<int, 16> &history);
 
 }; // namespace quarto

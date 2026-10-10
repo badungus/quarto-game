@@ -1,7 +1,9 @@
 #include "search.hpp"
 #include "canonical.hpp"
+#include "ordering.hpp"
 #include "types.hpp"
 #include "wincheck.hpp"
+#include <algorithm>
 #include <bit>
 #include <chrono>
 
@@ -164,8 +166,8 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
       stop_ = true;
     } // check if movetime has been reached
   }
-
-  const bool canon = std::popcount(pos.occupied()) <= CANON_MAX_PIECES;
+  int move_number = std::popcount(pos.occupied());
+  const bool canon = move_number <= CANON_MAX_PIECES;
   Canon c{};
   Key key;
   if (canon) {
@@ -199,7 +201,7 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     }
   }
 
-  if (std::popcount(pos.occupied()) == 15)
+  if (move_number == 15)
     return 0;
 
   if (depth == 0 || stop_)
@@ -225,55 +227,58 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   auto cutoff = [&] {
     if (!stop_)
       tt_.store(key, alpha, depth, to_tt(best_move), Bound::Lower);
-    history_[best_move.cell][best_move.give]++;
-    give_history_[best_move.give]++;
+    history_[pos.in_hand()][best_move.cell] +=
+        (16 - move_number) * (16 - move_number);
+    give_history_[best_move.give] += (16 - move_number) * (16 - move_number);
     return alpha;
   };
 
-  // Stage 1: the TT move, before anything else. It may come from an
-  // equivalent position or, very rarely, a hash collision, so it is checked
-  // first: the cell must be empty, and the piece available and safe after the
-  // placement. Searching an unsafe give would break the invariant that the
-  // piece in hand cannot win.
-  // tt_cell is the TT move's cell, or -1 when there is no TT move to try.
-  const Cell tt_cell = entry_move.cell >= 0 && entry_move.give >= 0 &&
-                               (pos.empty_cells() >> entry_move.cell & 1)
-                           ? entry_move.cell
-                           : Cell(-1);
-  // The safe gives on tt_cell other than the TT give, for stage 2: placing
-  // there was needed anyway to check the TT give, so it is not repeated.
-  Bitboard tt_cell_safe = 0;
-  if (tt_cell >= 0) {
-    pos.place_piece(tt_cell);
+  // Stage 1: the TT move, before anything else. A hash collision can hand over
+  // a move from another position, so it is checked first: the cell must be
+  // empty and the piece available. The give is searched only if it is also
+  // safe after the placement: an unsafe give would break the invariant that
+  // the piece in hand cannot win.
+  bool tt_move_legal =
+      entry_move.cell >= 0 && pos.empty_cells() >> entry_move.cell & 1 &&
+      entry_move.give >= 0 && pos.available() >> entry_move.give & 1;
+
+  if (tt_move_legal) {
+
+    pos.place_piece(entry_move.cell);
     Bitboard safe = pos.available() & ~winning_pieces(pos);
     if (safe >> entry_move.give & 1) {
       any_safe = true;
-      if (search_give(tt_cell, entry_move.give)) {
+      if (search_give(entry_move.cell, entry_move.give)) {
         pos.undo_place_piece();
         return cutoff();
       }
     }
-    tt_cell_safe = safe & ~(Bitboard{1} << entry_move.give);
     pos.undo_place_piece();
   }
 
-  // Stage 2: every other move, cells and pieces in index order.
-  for (Bitboard empty = pos.empty_cells(); empty; empty &= empty - 1) {
-    Cell cell = Cell(std::countr_zero(empty));
+  // Stage 2: every other move, cells and gives ordered by history. The TT
+  // give on the TT cell was already searched in stage 1, so it is skipped.
+  Bitboard empty = pos.empty_cells();
+  while (empty) {
+    Cell cell = best_cell(empty, history_, pos.in_hand());
     pos.place_piece(cell);
-    Bitboard avail = cell == tt_cell
-                         ? tt_cell_safe
-                         : Bitboard(pos.available() & ~winning_pieces(pos));
+    Bitboard safe_gives = ~winning_pieces(pos);
+    Bitboard avail = tt_move_legal && entry_move.cell == cell
+                         ? pos.available() & ~(Bitboard{1} << entry_move.give)
+                         : pos.available();
+    avail &= safe_gives;
     if (avail)
       any_safe = true;
-    for (; avail; avail &= avail - 1) {
-      if (search_give(cell, Piece(std::countr_zero(avail)))) {
+    while (avail) {
+      Piece give = best_give(avail, give_history_);
+      if (search_give(cell, give)) {
         pos.undo_place_piece();
         return cutoff();
       }
     }
     pos.undo_place_piece();
   }
+
   // Every give, after every placement, lets the opponent win with the next
   // piece: an exact loss, independent of depth.
   if (!any_safe) {
