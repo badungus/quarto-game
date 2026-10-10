@@ -78,12 +78,19 @@ Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
 
   const bool canon = pieces <= canon_max_pieces_;
   Canon c{};
-  Key key;
+  TTKey key;
+  // The whole position, so TT matches are exact. The parent always gives a
+  // piece before calling, so there is always one in hand, and the available
+  // pieces are the ones neither placed nor in hand: neither needs any bits.
   if (canon) {
+    // In canonical form the hand is piece 0.
     c = canonicalize(pos);
-    key = c.key();
+    key = {c.cols, c.occ};
   } else {
-    key = pos.hash();
+    const auto &p = pos.props();
+    key = {std::uint64_t(p[0]) | std::uint64_t(p[1]) << 16 |
+               std::uint64_t(p[2]) << 32 | std::uint64_t(p[3]) << 48,
+           std::uint32_t(pos.occupied() | pos.in_hand() << 16)};
   }
   // A canonical entry is shared by all equivalent positions, so its move is
   // stored in the canonical frame and mapped back on probe.
@@ -93,7 +100,7 @@ Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
   // keeps the bigger subtrees when slots collide.
   const auto depth = std::uint8_t(16 - pieces);
 
-  const TTEntry *entry = tt_.probe(key);
+  const std::optional<TTEntry> entry = tt_.probe(key);
   Move entry_move = EMPTY_MOVE;
   if (entry) {
     entry_move = canon ? from_canonical(entry->move, c) : entry->move;

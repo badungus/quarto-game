@@ -12,7 +12,6 @@ private:
   std::array<Bitboard, 4> prop_; // cells containing a property
   Bitboard avail_;               // available pieces, neither placed nor in hand
   Piece hand_;                   // piece the side to move has to play
-  Key key_;                      // zobrist
   std::array<Undo, 17> history_; // move history
   int top_;
 
@@ -28,7 +27,6 @@ public:
   Bitboard available() const { return avail_; }
   Bitboard occupied() const { return occ_; }
   Piece in_hand() const { return hand_; }
-  Key hash() const { return key_; }
 
   const std::array<Bitboard, 4> &props() const { return prop_; }
 };

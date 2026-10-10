@@ -39,9 +39,9 @@ private:
   std::uint64_t nodes_ = 0;
   ProgressFn on_progress_;
   // Positions with at most this many pieces are keyed by their canonical
-  // form, so equivalent positions share a TT entry; deeper ones by the free
-  // incremental Zobrist key. The piece count decides, so a position always
-  // gets the same kind of key.
+  // form, so equivalent positions share a TT entry; deeper ones by the
+  // position as it is. The piece count decides, so a position always gets the
+  // same kind of key, and the two kinds never meet.
   int canon_max_pieces_ = DEFAULT_CANON_MAX_PIECES;
 
   // Fail-hard alpha-beta value of `pos` for the side to move, in a position

@@ -39,10 +39,8 @@ constexpr std::array<CellLines, 16> make_cell_lines() {
 
 inline constexpr std::array<CellLines, 16> CELL_LINES = make_cell_lines();
 
-// every run of the engine uses the identical table
-
 // splitmix64: the standard seeding PRNG. One multiply-xorshift finalizer over a
-// counter, which is enough here - these keys only need to be well spread, not
+// counter, which is enough here - the TT only needs its index well spread, not
 // cryptographic.
 constexpr Key splitmix64(Key &state) {
   state += 0x9E3779B97F4A7C15ULL;
@@ -51,11 +49,6 @@ constexpr Key splitmix64(Key &state) {
   z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
   return z ^ (z >> 31);
 }
-
-struct ZobristKeys {
-  std::array<std::array<Key, 16>, 16> cell{}; // [cell][piece]
-  std::array<Key, 16> held{};                 // piece in hand
-};
 
 constexpr std::array<Bitboard, 4> pieces_with_prop() {
   std::array<Bitboard, 4> has;
@@ -71,28 +64,5 @@ constexpr std::array<Bitboard, 4> pieces_with_prop() {
 };
 
 inline constexpr std::array<Bitboard, 4> HAS_PROP = pieces_with_prop();
-
-constexpr ZobristKeys makeZobrist() {
-  ZobristKeys result{};
-  Key state = 0x0DDC0FFEEBADF00DULL; // arbitrary fixed seed
-
-  for (auto &piece_keys : result.cell) {
-    for (Key &key : piece_keys) {
-      key = splitmix64(state);
-    }
-  }
-
-  for (Key &key : result.held) {
-    key = splitmix64(state);
-  }
-
-  return result;
-}
-
-// Sliced into the two names the rest of the engine uses. makeZobrist() runs
-// twice during constant evaluation, but only the slices are stored.
-inline constexpr std::array<std::array<Key, 16>, 16> ZOBRIST =
-    makeZobrist().cell;
-inline constexpr std::array<Key, 16> HELD = makeZobrist().held;
 
 } // namespace quarto

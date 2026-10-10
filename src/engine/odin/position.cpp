@@ -1,5 +1,4 @@
 #include "position.hpp"
-#include "tables.hpp"
 #include <bit>
 
 namespace quarto {
@@ -9,7 +8,6 @@ void Position::load(Bitboard occ, std::array<Bitboard, 4> prop,
   occ_ = occ;
   prop_ = prop;
   hand_ = hand;
-  key_ = (hand_ >= 0) ? HELD[hand_] : 0;
   top_ = 0;
   avail_ = 0xFFFF;
   if (hand_ >= 0) {
@@ -25,7 +23,6 @@ void Position::load(Bitboard occ, std::array<Bitboard, 4> prop,
         piece |= 1 << i;
       }
     }
-    key_ ^= ZOBRIST[square][piece];
     avail_ &= ~(Bitboard{1} << piece);
     occ &= occ - 1; // remove the lowest 1 bit
   }
@@ -34,7 +31,6 @@ void Position::load(Bitboard occ, std::array<Bitboard, 4> prop,
 void Position::place_piece(Cell c) {
   history_[top_++] = {c, hand_};
   if (c >= 0 && hand_ >= 0) {
-    key_ ^= ZOBRIST[c][hand_];
     Bitboard mask = Bitboard{1} << c;
     occ_ |= mask;
     for (int i = 0; i < 4; ++i) {
@@ -46,11 +42,7 @@ void Position::place_piece(Cell c) {
 }
 
 void Position::give_piece(Piece p) {
-  if (hand_ >= 0) {
-    key_ ^= HELD[hand_];
-  }
   if (p >= 0) {
-    key_ ^= HELD[p];
     avail_ &= ~(Bitboard{1} << p);
   }
   hand_ = p;
@@ -59,7 +51,6 @@ void Position::give_piece(Piece p) {
 void Position::undo_place_piece() {
   Undo u = history_[--top_];
   if (u.cell >= 0 && u.hand >= 0) {
-    key_ ^= ZOBRIST[u.cell][u.hand];
     Bitboard mask = ~(Bitboard{1} << u.cell);
     occ_ &= mask;
     for (int i = 0; i < 4; ++i) {
@@ -72,16 +63,12 @@ void Position::undo_place_piece() {
 
 void Position::undo_give_piece() {
   if (hand_ >= 0) {
-    key_ ^= HELD[hand_];
     avail_ |= Bitboard{1} << hand_;
   }
 
   // At the opening the root gives without placing first, so there is no
   // history entry to restore from - the hand simply goes back to empty.
   Piece prev = (top_ == 0) ? Piece(-1) : history_[top_ - 1].hand;
-  if (prev >= 0) {
-    key_ ^= HELD[prev];
-  }
   hand_ = prev;
 }
 

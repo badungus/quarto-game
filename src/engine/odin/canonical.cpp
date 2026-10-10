@@ -148,17 +148,6 @@ Transform compose(const Transform &a, const Transform &b) {
 }
 } // namespace
 
-Key Canon::key() const {
-  // The occupancy and has_hand are part of the key: the same columns on
-  // another board, or with and without a piece in hand, are different
-  // positions. The top bit is forced so the key is never 0, which the TT
-  // reserves for empty slots. Not bit 0: the TT indexes with the low bits, so
-  // that would leave every even slot unused.
-  Key state = cols;
-  state = splitmix64(state) ^ (occ | (has_hand ? std::uint64_t{1} << 16 : 0));
-  return splitmix64(state) | (Key{1} << 63);
-}
-
 Canon canonicalize(const Position &pos) {
   Bitboard occ;
   std::uint32_t candidates = occ_candidates(pos, occ);

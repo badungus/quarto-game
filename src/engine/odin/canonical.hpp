@@ -88,8 +88,6 @@ struct Canon {
   bool symmetric;
 
   Bitboard col(int j) const { return Bitboard(cols >> (16 * j)); }
-  // TT key: the same for all equivalent positions, never 0.
-  Key key() const;
 };
 
 // A transformation as lookup tables: where each cell goes and what each piece

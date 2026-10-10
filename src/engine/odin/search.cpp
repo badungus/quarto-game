@@ -17,7 +17,7 @@ constexpr Score PROVEN = WIN - 16;
 
 // Positions with at most this many pieces on the board are keyed by their
 // canonical form, so equivalent positions share a TT entry; deeper ones by
-// the free incremental Zobrist key, since canonicalize costs a few hundred
+// the position as it is, since canonicalize costs a few hundred
 // operations and transpositions through symmetry get rarer and cheaper with
 // depth. The piece count decides, so a position always gets the same kind of
 // key. Tune by benchmark.
@@ -169,12 +169,19 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   int move_number = std::popcount(pos.occupied());
   const bool canon = move_number <= CANON_MAX_PIECES;
   Canon c{};
-  Key key;
+  TTKey key;
+  // The whole position, so TT matches are exact. The parent always gives a
+  // piece before calling, so there is always one in hand, and the available
+  // pieces are the ones neither placed nor in hand: neither needs any bits.
   if (canon) {
+    // In canonical form the hand is piece 0.
     c = canonicalize(pos);
-    key = c.key();
+    key = {c.cols, c.occ};
   } else {
-    key = pos.hash();
+    const auto &p = pos.props();
+    key = {std::uint64_t(p[0]) | std::uint64_t(p[1]) << 16 |
+               std::uint64_t(p[2]) << 32 | std::uint64_t(p[3]) << 48,
+           std::uint32_t(pos.occupied() | pos.in_hand() << 16)};
   }
   // A canonical entry is shared by all equivalent positions, so its move is
   // stored in the canonical frame and mapped back on probe. Storing real
@@ -182,7 +189,7 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   // position: still correct, but much slower.
   auto to_tt = [&](Move m) { return canon ? to_canonical(m, c) : m; };
 
-  const TTEntry *entry = tt_.probe(key);
+  const std::optional<TTEntry> entry = tt_.probe(key);
   Move entry_move = EMPTY_MOVE;
   if (entry)
     entry_move = canon ? from_canonical(entry->move, c) : entry->move;
