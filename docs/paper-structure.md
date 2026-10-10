@@ -184,7 +184,7 @@ and responsibilities. Use short code excerpts only where they make a point clear
 | Module | Responsibility |
 |---|---|
 | `types.hpp` | `Bitboard` (uint16), `Key` (uint64), `Piece`, `Cell`, `Score`, `Move{cell, give}`, `Undo`; constants `WIN = 10000`, `INF = 32000` |
-| `tables.hpp` | `constexpr` line masks, per-cell line lookup, Zobrist keys |
+| `tables.hpp` | `constexpr` line masks, per-cell line lookup, splitmix64 |
 | `position.*` | Board state, make/unmake of placing and giving |
 | `wincheck.*` | Line-win detection, static evaluation |
 | `search.*` | Iterative deepening, root search, negamax with alpha-beta |
@@ -222,17 +222,17 @@ and responsibilities. Use short code excerpts only where they make a point clear
 - Discuss: why make/unmake instead of copy-make (the position is small, about 30
   bytes, so both are possible. Measure the difference *[optional micro-benchmark]*).
 
-### 3.6 Zobrist Hashing (Odin)
-- Keys: `ZOBRIST[cell][piece]` (256 keys) and `HELD[piece]` (16 keys for the piece
-  in hand).
-- Generated at compile time with splitmix64 and a fixed seed, so every run uses the
-  same table.
-- Updated incrementally in `place_piece`, `give_piece` and both undo functions.
-  `load()` computes the key from scratch.
+### 3.6 Position Keys (Odin)
+- Odin first used Zobrist hashing (`ZOBRIST[cell][piece]`, `HELD[piece]`,
+  splitmix64 with a fixed seed, updated incrementally). It was replaced by exact
+  keys, because a hash can collide, and a collision can corrupt a proof.
+- A key is the position itself, 64 + 20 bits: the four property bitboards and
+  `occ | hand << 16` (or the canonical columns and occupancy, Section 2.2). The
+  available pieces follow from these, and every TT position has a piece in hand.
+- The TT compares the stored key with the probed one, so a match is always the
+  same position. splitmix64 only spreads keys over the table.
 - Why the piece in hand must be part of the key: two positions with the same board
   but a different piece in hand are different game states.
-- Collision probability for 64-bit keys at the expected table sizes *[short
-  calculation]*.
 
 ### 3.7 Concurrency and Search Control
 - `Engine::go` starts a `std::jthread` that searches its **own copy** of the
@@ -338,9 +338,11 @@ Zobrist hashing (Section 3.6). The files `tt.cpp`/`tt.hpp` and
 reported later or presented as projections.*
 
 ### 5.1 Transposition Table Design
-- Entry layout: key (or its upper bits), score, depth, bound type
-  (EXACT / LOWER / UPPER), best move `{cell, give}`. Size *[e.g. 16 bytes]*.
-- Indexing: `key & (size − 1)` with a power-of-two table size.
+- Entry layout, 16 bytes: the key's 64 bits, then its other 20 bits, score,
+  best move `{cell, give}`, depth, bound type (EXACT / LOWER / UPPER) and
+  generation packed into one word. Depth 0 marks an empty entry.
+- Indexing: `(mix * size) >> 64` with `mix` a splitmix64 mix of the key, so the
+  table can be any size.
 - Replacement scheme: depth-preferred vs. always-replace vs. two-tier buckets.
 - **Mate-score adjustment:** scores of the form `WIN + depth` must be converted to
   distance-from-node when stored and back when read.
@@ -626,9 +628,11 @@ Use these when writing, so the paper matches the implementation:
 - Time check every 4096 nodes. The depth is capped at the number of empty cells.
 - Engine defaults: depth 16, movetime unlimited (`INT_MAX`). The GUI's engine seats
   use depth 16 with 3000 ms (`match_config.hpp`).
-- Thor and Odin currently have **the same search and evaluation**. Odin only adds
-  Zobrist hashing (`ZOBRIST[16][16]`, `HELD[16]`, splitmix64, seed
-  `0x0DDC0FFEEBADF00D`). `tt.*` and `ordering.*` are empty.
+- Odin adds to Thor's search: a transposition table with exact keys (16-byte
+  entries, multiply-shift indexing), symmetry reduction (`canonical.*`), history
+  move ordering (`ordering.*`) and a solver (`solve.*`, `quarto_solve`). Its
+  earlier Zobrist hashing (`ZOBRIST[16][16]`, `HELD[16]`, seed
+  `0x0DDC0FFEEBADF00D`) has been removed.
 - The engine runs in a separate process. The GUI uses tiny-process-library and
   handles stale `bestmove` replies after `stop`.
 - Commands in the GUI: SelectCell, SelectGive, Undo, Redo, JumpTo, NewGame, Pause,

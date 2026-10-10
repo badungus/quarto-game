@@ -227,17 +227,16 @@ cols = q0 | q1 << 16 | q2 << 32 | q3 << 48   // 64 bits, compared directly
 ```
 
 `Canon` keeps `cols`, the occupancy `occ'` and a has-hand flag. Comparing
-`cols` is exact, and `stabilizer` relies on that. The TT key, `Canon::key()`,
-is a 64-bit mix of `cols` and `occ' | has_hand << 16`. The occupancy and the
-flag have to be part of the key: otherwise the same columns on another board,
-or the same board with and without a piece in hand, would share a key. A
-64-bit collision is as unlikely here as with Zobrist hashing.
+`cols` is exact, and `stabilizer` relies on that.
 
-`TranspositionTable::store` treats `key == 0` as an empty slot, and an empty
-slot has `Bound::Exact` with score 0. So the key must never be 0: set its
-**top** bit. Not the lowest: the TT picks the slot with `key & mask_`, so a
-forced low bit would put every canonical key in an odd slot and leave half the
-table unused.
+The TT key is not a hash but the canonical position itself: a `TTKey` of
+`{cols, occ'}`. The occupancy has to be part of it, because a cell holding
+piece 0 and an empty cell both read as 0 in every column. In canonical form
+the hand is piece 0, and the available pieces are the ones neither placed nor
+in hand, so these 80 bits are the whole position. The has-hand flag is left
+out: the TT only holds positions with a piece in hand (§4.1). The TT compares
+the stored key with the probed one, so a TT match is always the same
+position, never a collision. That matters for a proof.
 
 ### 3.5 Remembering the transformation
 
@@ -259,7 +258,6 @@ struct Canon {
   bool symmetric; // some non-identity transformation fixes the position
 
   Bitboard col(int j) const;         // column j of cols
-  Key key() const;                   // TT key, same for equivalent positions
 };
 
 struct Transform { // where each cell goes and what each piece becomes
@@ -301,23 +299,28 @@ canonical move to a legal, equivalent real move.
 
 ### 4.1 When to canonicalise
 
-Canonicalising costs a few hundred operations. The existing Zobrist key costs
-nothing (it is updated incrementally). Symmetry pays off most near the root,
-where many positions are equivalent and subtrees are huge. Deep in the tree,
-positions rarely coincide and subtrees are cheap. So use the canonical key only
-up to a piece count, and Zobrist after that:
+Canonicalising costs a few hundred operations; reading the position as it is
+costs almost nothing. Symmetry pays off most near the root, where many
+positions are equivalent and subtrees are huge. Deep in the tree, positions
+rarely coincide and subtrees are cheap. So key positions by their canonical
+form only up to a piece count, and by the position as it is after that:
 
 ```cpp
 // search.cpp
 // Positions with at most this many pieces on the board are keyed by their
-// canonical form; deeper ones by Zobrist. Tune by benchmark (section 7).
+// canonical form; deeper ones by the position as it is. Tune by benchmark
+// (section 7).
 constexpr int CANON_MAX_PIECES = 10;
 ```
 
-Both kinds of key can share one table. The piece count of a position decides
-which kind it uses, so the same position always gets the same kind of key, and
-a canonical key colliding with a Zobrist key is just an ordinary 2⁻⁶⁴ hash
-collision.
+The position as it is: the four property bitboards packed into 64 bits, and
+`occ | hand << 16`. Both kinds of key are exact, and both can share one table:
+the piece count decides which kind a position gets, so the same position
+always gets the same kind of key, and keys of the two kinds never meet.
+
+Neither kind needs a has-hand bit. `negamax` is only ever called right after a
+give, so every position in the TT has a piece in hand. The give-only opening
+(nothing in hand) is handled at the root, which does not use the TT.
 
 ### 4.2 Changes to `Search::negamax`
 
@@ -328,17 +331,20 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
 
   const bool canon = std::popcount(pos.occupied()) <= CANON_MAX_PIECES;
   Canon c{};
-  Key key;
+  TTKey key;
   if (canon) {
     c = canonicalize(pos);
-    key = c.key();
+    key = {c.cols, c.occ};
   } else {
-    key = pos.hash();
+    const auto &p = pos.props();
+    key = {std::uint64_t(p[0]) | std::uint64_t(p[1]) << 16 |
+               std::uint64_t(p[2]) << 32 | std::uint64_t(p[3]) << 48,
+           std::uint32_t(pos.occupied() | pos.in_hand() << 16)};
   }
   // Stored moves are in the frame of the key: canonical or real.
   auto to_tt = [&](Move m) { return canon ? to_canonical(m, c) : m; };
 
-  const TTEntry *entry = tt_.probe(key);
+  const std::optional<TTEntry> entry = tt_.probe(key);
   Move entry_move = EMPTY_MOVE;
   if (entry)
     entry_move = canon ? from_canonical(entry->move, c) : entry->move;
@@ -565,9 +571,14 @@ the TT with good moves for the deep one. Keep it.
 
 ### 6.2 Transposition table size and replacement
 
-`DEFAULT_TT_SIZE` is 64 MB, which holds 4 M entries of 16 bytes. A full solve
-visits far more positions than that, so give it as much memory as the machine
-can spare (several GB).
+An entry is 16 bytes: the key's 64 bits, then the key's other 20 bits, score,
+move, depth, bound and generation packed into a second word. Depth 0 marks an
+empty entry, since every stored position has depth 1 or more. The slot is a
+mix of the key scaled by `(mix * size) >> 64`, so the table can be any size,
+not just a power of two. The engine's `DEFAULT_TT_SIZE` of 2048 MB holds
+134 M entries; `quarto_solve` defaults to 8192 MB, 537 M entries. A full
+solve visits far more positions than that, so give it as much memory as the
+machine can spare.
 
 The table has one entry per slot. A depth-preferred entry from the current
 generation can only be replaced by an equal or deeper one, so new shallow
@@ -576,8 +587,8 @@ usual fix:
 
 ```cpp
 struct Bucket {
-  TTEntry deep;   // replaced only by deeper entries or an older generation
-  TTEntry recent; // always replaced
+  Packed deep;   // replaced only by deeper entries or an older generation
+  Packed recent; // always replaced
 };
 ```
 
@@ -590,8 +601,13 @@ At 32 bytes per bucket, two buckets fit in a 64-byte cache line.
 
 ### 6.3 Move ordering
 
-The number of nodes alpha-beta visits depends heavily on ordering, and
-`ordering.cpp` is still empty. After the TT move, cheap things to try:
+The number of nodes alpha-beta visits depends heavily on ordering. `Search`
+orders cells and gives by history (`ordering.cpp`): about 10% fewer nodes, but
+no faster, since picking the best move costs time at every node. The solver
+keeps index order: history ordering made it 16-23% slower on 3- and 5-piece
+solves, and only 10% faster on 4-piece ones. Most solved positions are draws,
+and history says nothing about which move avoids losing. After the TT move,
+cheap things to try:
 
 - **Gives:** first try the piece that leaves the opponent the fewest
   placements that don't lose. `winning_pieces` already computes which pieces
@@ -691,8 +707,8 @@ took about two weeks. That isn't necessary to play perfectly. Once the empty
 board solves in reasonable time:
 
 - Store the solved values of positions in the first few plies as an opening
-  book, keyed by `Canon::key()`. Book moves are stored in the canonical frame
-  and mapped back with `from_canonical`.
+  book, keyed by the canonical position (`cols`, `occ`). Book moves are stored
+  in the canonical frame and mapped back with `from_canonical`.
 - Solve every later position live with `go depth 16`.
 
 Where the book ends depends on how fast the live solve is. Choose it after

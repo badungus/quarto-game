@@ -119,7 +119,7 @@ engine/    search
 
 | Path | Contents |
 |---|---|
-| `src/engine/` | Bitboard `Position` (Zobrist hashing, 17-entry undo history), `wincheck` (fast line detection), `search` (negamax with alpha-beta). Public entry point: `quarto::find_best_move(grid, piece_in_hand, available, depth)` in `search.hpp`. |
+| `src/engine/` | Bitboard `Position` (17-entry undo history), `wincheck` (fast line detection), `search` (negamax with alpha-beta). Public entry point: `quarto::find_best_move(grid, piece_in_hand, available, depth)` in `search.hpp`. |
 | `src/game/` | `Game` class: board, piece in hand, available pieces, undo history, win/draw detection. `types.hpp` holds `Piece`, `Cell`, `Board`, `Move`. |
 | `src/ui/app.*` | `Gui`: opens the window and runs the draw loop. |
 | `src/ui/layout.hpp` | Layout constants in a **1920×1080 design space**, plus `ui_scale()` to map them to the real window size. |
