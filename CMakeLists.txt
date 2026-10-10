@@ -34,7 +34,7 @@ add_subdirectory(src/engine/odin)
 
 add_subdirectory(src/engine/baldur)
 
-add_subdirectory(src/solver)
+add_subdirectory(src/engine/optimal)
 
 add_executable(quarto
     src/main.cpp

@@ -2,6 +2,7 @@
 #include "tables.hpp"
 #include "types.hpp"
 #include <algorithm>
+#include <atomic>
 
 namespace quarto {
 
@@ -21,6 +22,17 @@ constexpr std::uint64_t EXTRA_MASK = (std::uint64_t{1} << EXTRA_BITS) - 1;
 // no stored key needs a bit for it.
 std::uint8_t depth_of(std::uint64_t data) {
   return std::uint8_t(data >> DEPTH_SHIFT);
+}
+
+// Entry words are read and written by several threads at once. Relaxed
+// atomics make that defined behaviour and cost nothing on x86; the XOR check
+// catches an entry whose two words come from different stores.
+std::uint64_t load(const std::uint64_t &word) {
+  return std::atomic_ref(const_cast<std::uint64_t &>(word))
+      .load(std::memory_order_relaxed);
+}
+void save(std::uint64_t &word, std::uint64_t value) {
+  std::atomic_ref(word).store(value, std::memory_order_relaxed);
 }
 } // namespace
 
@@ -46,8 +58,8 @@ void TranspositionTable::clear() {
 std::optional<TTHit> TranspositionTable::probe(TTKey key) const {
   const Entry &entry = table_[index(key)];
   // Each word is read once, so the checks below and the result agree.
-  const std::uint64_t data = entry.data;
-  const std::uint64_t bits = entry.check ^ data;
+  const std::uint64_t data = load(entry.data);
+  const std::uint64_t bits = load(entry.check) ^ data;
   if (bits != key.bits || (data & EXTRA_MASK) != key.extra ||
       depth_of(data) == 0)
     return std::nullopt;
@@ -61,8 +73,9 @@ std::optional<TTHit> TranspositionTable::probe(TTKey key) const {
 void TranspositionTable::store(TTKey key, Score score, uint8_t depth, Move move,
                                Bound bound) {
   Entry &entry = table_[index(key)];
-  const std::uint8_t old_depth = depth_of(entry.data);
-  const std::uint8_t old_gen = std::uint8_t(entry.data >> GEN_SHIFT);
+  const std::uint64_t old = load(entry.data);
+  const std::uint8_t old_depth = depth_of(old);
+  const std::uint8_t old_gen = std::uint8_t(old >> GEN_SHIFT);
   if (old_depth == 0 || old_gen != gen_ || depth >= old_depth) {
     const std::uint64_t data =
         key.extra | std::uint64_t(std::uint16_t(score)) << SCORE_SHIFT |
@@ -70,7 +83,8 @@ void TranspositionTable::store(TTKey key, Score score, uint8_t depth, Move move,
         std::uint64_t(move.give + 1) << GIVE_SHIFT |
         std::uint64_t(depth) << DEPTH_SHIFT |
         std::uint64_t(bound) << BOUND_SHIFT | std::uint64_t(gen_) << GEN_SHIFT;
-    entry = {key.bits ^ data, data};
+    save(entry.check, key.bits ^ data);
+    save(entry.data, data);
   }
 }
 } // namespace quarto

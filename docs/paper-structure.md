@@ -629,10 +629,14 @@ Use these when writing, so the paper matches the implementation:
 - Engine defaults: depth 16, movetime unlimited (`INT_MAX`). The GUI's engine seats
   use depth 16 with 3000 ms (`match_config.hpp`).
 - Odin adds to Thor's search: a transposition table with exact keys (16-byte
-  entries, multiply-shift indexing), symmetry reduction (`canonical.*`), history
-  move ordering (`ordering.*`) and a solver (`solve.*`, `quarto_solve`). Its
-  earlier Zobrist hashing (`ZOBRIST[16][16]`, `HELD[16]`, seed
-  `0x0DDC0FFEEBADF00D`) has been removed.
+  entries, multiply-shift indexing), symmetry reduction (`canonical.*`) and
+  history move ordering (`ordering.*`). Its earlier Zobrist hashing
+  (`ZOBRIST[16][16]`, `HELD[16]`, seed `0x0DDC0FFEEBADF00D`) has been removed.
+- Optimal (`src/engine/optimal`) plays only proven moves: from an opening book
+  while the position is in it, from its solver (`solve.*`) after that. It
+  shares Odin's TT and symmetry code, as copies. `optimal --solve`
+  solves one position; `optimal --full` solves the empty board on several
+  threads and writes the book.
 - The engine runs in a separate process. The GUI uses tiny-process-library and
   handles stale `bestmove` replies after `stop`.
 - Commands in the GUI: SelectCell, SelectGive, Undo, Redo, JumpTo, NewGame, Pause,

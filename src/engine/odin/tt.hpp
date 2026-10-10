@@ -23,6 +23,9 @@ private:
   std::size_t index(TTKey key) const;
 
 public:
+  // probe and store may be called by several threads at once. The rest may
+  // not, and only while no thread is probing or storing.
+
   // Size in MB, like resize().
   explicit TranspositionTable(size_t mb) { resize(mb); }
   void clear();

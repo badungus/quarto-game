@@ -576,7 +576,8 @@ move, depth, bound and generation packed into a second word. Depth 0 marks an
 empty entry, since every stored position has depth 1 or more. The slot is a
 mix of the key scaled by `(mix * size) >> 64`, so the table can be any size,
 not just a power of two. The engine's `DEFAULT_TT_SIZE` of 2048 MB holds
-134 M entries; `quarto_solve` defaults to 8192 MB, 537 M entries. A full
+134 M entries; `optimal --solve` and `optimal --full` default to 8192 MB,
+537 M entries. A full
 solve visits far more positions than that, so give it as much memory as the
 machine can spare.
 

@@ -5,7 +5,6 @@ add_library(odin_core STATIC
     ordering.cpp
     position.cpp
     search.cpp
-    solve.cpp
     tt.cpp
     uqi.cpp
     wincheck.cpp

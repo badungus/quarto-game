@@ -15,6 +15,7 @@ inline constexpr std::array ENGINES{
     EngineSeat{"Thor", "thor"},
     EngineSeat{"Odin", "odin"},
     EngineSeat{"Baldur", "baldur"},
+    EngineSeat{"Optimal", "optimal"},
 };
 constexpr auto make_engine_names() {
   std::array<std::string, ENGINES.size()> result{};
