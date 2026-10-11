@@ -1,6 +1,7 @@
 // layout.hpp - Rect helpers for resolution-independent layout: split, inset,
 // center, aspect-fit square.
 #pragma once
+#include "match_config.hpp"
 #include <algorithm>
 #include <raylib.h>
 
@@ -72,8 +73,15 @@ constexpr float PLAYER_DD_Y = 600;
 constexpr float SETTING_HEIGHT = 75;
 constexpr float SETTING_BOTTOM_Y = PLAYER_DD_Y - UI_SPACING;
 
-// Main menu button that opens the engine match screen, below the dropdowns.
-constexpr float MENU_MATCH_Y = DESIGN_HEIGHT - UI_SPACING - PLAYER_DD_HEIGHT;
+// Main menu, top to bottom: Start, engine settings, player dropdowns, Engine
+// Match. The dropdowns open downwards over their own row, so they get room for
+// every entry above the Engine Match button.
+constexpr float MENU_MATCH_HEIGHT = 100;
+constexpr float MENU_MATCH_Y = DESIGN_HEIGHT - UI_SPACING - MENU_MATCH_HEIGHT;
+constexpr float MENU_DD_HEIGHT = SETTING_HEIGHT;
+constexpr float MENU_DD_Y =
+    MENU_MATCH_Y - UI_SPACING - PLAYERS.size() * MENU_DD_HEIGHT;
+constexpr float MENU_SETTING_BOTTOM_Y = MENU_DD_Y - UI_SPACING;
 
 // Engine match screen: controls in two columns on the left, the match output
 // in a panel filling the rest. Settings and dropdowns keep the main menu's
@@ -83,10 +91,12 @@ constexpr float MATCH_COLUMN_2_X = MATCH_COLUMN_1_X + PLAYER_DD_WIDTH;
 constexpr float MATCH_START_Y = NAVBAR_HEIGHT + UI_SPACING;
 constexpr float MATCH_START_HEIGHT = 100;
 constexpr float MATCH_FIELD_Y = MATCH_START_Y + MATCH_START_HEIGHT + UI_SPACING;
-constexpr float MATCH_OUTPUT_X = MATCH_COLUMN_2_X + PLAYER_DD_WIDTH + UI_SPACING;
+constexpr float MATCH_OUTPUT_X =
+    MATCH_COLUMN_2_X + PLAYER_DD_WIDTH + UI_SPACING;
 constexpr float MATCH_OUTPUT_Y = MATCH_START_Y;
 constexpr float MATCH_OUTPUT_WIDTH = DESIGN_WIDTH - MATCH_OUTPUT_X - UI_SPACING;
-constexpr float MATCH_OUTPUT_HEIGHT = DESIGN_HEIGHT - MATCH_OUTPUT_Y - UI_SPACING;
+constexpr float MATCH_OUTPUT_HEIGHT =
+    DESIGN_HEIGHT - MATCH_OUTPUT_Y - UI_SPACING;
 constexpr float MATCH_OUTPUT_PADDING = 30;
 constexpr float MATCH_OUTPUT_FONT = 22;
 constexpr float MATCH_OUTPUT_LINE = 30;
@@ -104,3 +114,8 @@ constexpr float ENGINE_OUTPUT_WIDTH =
     EVALBAR_1_X - UI_SPACING - ENGINE_OUTPUT_PLAYER_1_X;
 // Output stops where the evalbars end, inside the player panels.
 constexpr float ENGINE_OUTPUT_BOTTOM = EVALBAR_Y + EVALBAR_HEIGHT;
+
+constexpr float HOME_BUTTON_WIDTH = 300;
+constexpr float HOME_BUTTON_HEIGHT = 0.8f * NAVBAR_HEIGHT;
+constexpr float HOME_BUTTON_X = (DESIGN_WIDTH - HOME_BUTTON_WIDTH) / 2;
+constexpr float HOME_BUTTON_Y = (NAVBAR_HEIGHT - HOME_BUTTON_HEIGHT) / 2;

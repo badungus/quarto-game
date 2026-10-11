@@ -11,9 +11,10 @@ Screen::Screen(const Assets &assets)
     : main_menu_(game, match_controller, match_config, assets),
       game_screen_(game, match_controller, assets), assets_(assets),
       engine_match_(game, match_controller, match_config, assets),
-      home_button_(Rectangle{0, 0, BUTTON_WIDTH, BUTTON_HEIGHT},
+      home_button_(Rectangle{HOME_BUTTON_X, HOME_BUTTON_Y, HOME_BUTTON_WIDTH,
+                             HOME_BUTTON_HEIGHT},
                    assets.pool_button_background, assets.pool_button_hover,
-                   assets.pool_button_armed, &assets.undo) {};
+                   assets.pool_button_armed, "QUARTO!") {};
 
 void Screen::update(const Input &in) {
   ScreenId screen = current_;

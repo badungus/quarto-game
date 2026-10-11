@@ -69,4 +69,4 @@ target_include_directories(quarto PRIVATE
 target_link_libraries(quarto PRIVATE raylib tiny-process-library::tiny-process-library)
 
 # Building the GUI also builds the engine it launches.
-add_dependencies(quarto thor odin baldur)
+add_dependencies(quarto thor odin baldur optimal)
