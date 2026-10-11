@@ -2,7 +2,6 @@
 #include "canonical.hpp"
 #include "tables.hpp"
 
-#include <algorithm>
 #include <bit>
 
 namespace quarto {
@@ -69,7 +68,7 @@ std::uint32_t occ_candidates(const Position &pos, Bitboard &occ) {
 }
 
 // The position under board symmetry s with the relabeling normalised. `occ`
-// is the occupancy under s. `symmetric` is left false for canonicalize.
+// is the occupancy under s.
 //
 // Inverting property i turns its column p into p ^ occ. With a piece in hand
 // the inversions are chosen to turn it into piece 0; with none, each column
@@ -78,7 +77,7 @@ std::uint32_t occ_candidates(const Position &pos, Bitboard &occ) {
 // the columns, so sorting them removes the order as well.
 Canon normalise(const Position &pos, int s, Bitboard occ) {
   const Piece hand = pos.in_hand();
-  Canon n{0, occ, hand >= 0, std::uint8_t(s), {0, 1, 2, 3}, 0, false};
+  Canon n{0, occ, hand >= 0, std::uint8_t(s), {0, 1, 2, 3}, 0};
   std::array<Bitboard, 4> q;
   for (int i = 0; i < 4; ++i) {
     Bitboard p = apply_sym(s, pos.props()[i]);
@@ -119,33 +118,6 @@ Piece unrelabel(Piece r, const std::array<std::uint8_t, 4> &order,
   return p;
 }
 
-Transform make_transform(int s, const std::array<std::uint8_t, 4> &order,
-                         std::uint8_t flip) {
-  Transform t;
-  t.cell = SYMS[s];
-  for (int p = 0; p < 16; ++p)
-    t.piece[p] = relabel(Piece(p), order, flip);
-  return t;
-}
-
-Transform inverse(const Transform &t) {
-  Transform inv;
-  for (int x = 0; x < 16; ++x) {
-    inv.cell[t.cell[x]] = Cell(x);
-    inv.piece[t.piece[x]] = Piece(x);
-  }
-  return inv;
-}
-
-// a after b.
-Transform compose(const Transform &a, const Transform &b) {
-  Transform r;
-  for (int x = 0; x < 16; ++x) {
-    r.cell[x] = a.cell[b.cell[x]];
-    r.piece[x] = a.piece[b.piece[x]];
-  }
-  return r;
-}
 } // namespace
 
 Canon canonicalize(const Position &pos) {
@@ -156,23 +128,11 @@ Canon canonicalize(const Position &pos) {
   // Starts from the first candidate, like occ_candidates: no cols value is
   // free to serve as "none yet".
   Canon best = normalise(pos, std::countr_zero(candidates), occ);
-  int ties = 1; // candidates reaching best.cols
   for (candidates &= candidates - 1; candidates; candidates &= candidates - 1) {
     Canon n = normalise(pos, std::countr_zero(candidates), occ);
-    if (n.cols < best.cols) {
+    if (n.cols < best.cols)
       best = n;
-      ties = 1;
-    } else if (n.cols == best.cols) {
-      ++ties;
-    }
   }
-
-  // Two symmetries reaching the same columns, or two equal columns, each mean
-  // a non-identity transformation fixes the position. The empty board with
-  // nothing in hand is fixed by every relabeling.
-  bool col_tie = best.col(0) == best.col(1) || best.col(1) == best.col(2) ||
-                 best.col(2) == best.col(3);
-  best.symmetric = ties > 1 || col_tie || (occ == 0 && !best.has_hand);
   return best;
 }
 
@@ -192,39 +152,6 @@ Move from_canonical(Move m, const Canon &c) {
   if (m.give >= 0)
     r.give = unrelabel(m.give, c.order, c.flip);
   return r;
-}
-
-std::vector<Transform> stabilizer(const Position &pos, const Canon &c) {
-  // T0 = the transformation canonicalize picked. Every T that also reaches
-  // the canonical form gives T0^-1 after T, which maps pos onto itself.
-  const Transform back = inverse(make_transform(c.sym, c.order, c.flip));
-  Bitboard occ;
-  std::uint32_t candidates = occ_candidates(pos, occ);
-  std::vector<Transform> stab;
-
-  for (; candidates; candidates &= candidates - 1) {
-    int s = std::countr_zero(candidates);
-    Canon n = normalise(pos, s, occ);
-    // Every candidate has c's occupancy and hand, so equal columns mean
-    // exactly the same canonical form.
-    if (n.cols != c.cols)
-      continue;
-    // Equal columns can trade places: every reordering that leaves the
-    // columns as they are reaches the same canonical form.
-    std::array<std::uint8_t, 4> perm = {0, 1, 2, 3};
-    do {
-      bool keeps_cols = true;
-      for (int j = 0; j < 4; ++j)
-        keeps_cols = keeps_cols && n.col(perm[j]) == n.col(j);
-      if (!keeps_cols)
-        continue;
-      std::array<std::uint8_t, 4> order;
-      for (int j = 0; j < 4; ++j)
-        order[j] = n.order[perm[j]];
-      stab.push_back(compose(back, make_transform(s, order, n.flip)));
-    } while (std::next_permutation(perm.begin(), perm.end()));
-  }
-  return stab;
 }
 
 } // namespace quarto

@@ -11,13 +11,13 @@ three parts:
 | Symmetry reduction        | **missing**                          |
 
 Everything below is additive. `Position`, the move generator, the win checks
-and the scoring scheme stay the same. Symmetry changes three things:
+and the scoring scheme stay the same. Symmetry changes two things:
 
 1. **What the TT is keyed by.** Equivalent positions must share one key.
 2. **How TT moves are stored.** They are stored in the canonical frame and
    mapped back on probe.
-3. **Which moves are generated.** In a position that is symmetric with
-   itself, only one move of each group of equivalent moves is generated.
+
+Move generation is left unchanged; §5 explains why.
 
 New files: `canonical.hpp` and `canonical.cpp` (add `canonical.cpp` to
 `odin_core` in `CMakeLists.txt`) with the symmetry tables in them: only canonicalisation uses those, so they stay out of `tables.hpp`.
@@ -227,7 +227,7 @@ cols = q0 | q1 << 16 | q2 << 32 | q3 << 48   // 64 bits, compared directly
 ```
 
 `Canon` keeps `cols`, the occupancy `occ'` and a has-hand flag. Comparing
-`cols` is exact, and `stabilizer` relies on that.
+`cols` is exact.
 
 The TT key is not a hash but the canonical position itself: a `TTKey` of
 `{cols, occ'}`. The occupancy has to be part of it, because a cell holding
@@ -241,8 +241,7 @@ position, never a collision. That matters for a proof.
 ### 3.5 Remembering the transformation
 
 The TT move must be mapped between the real frame and the canonical frame
-(§4), so canonicalisation also returns the transformation it used. The same
-file builds the stabilizer that §5 uses to skip moves.
+(§4), so canonicalisation also returns the transformation it used.
 
 The implementation is in `src/engine/odin/canonical.hpp` and
 `canonical.cpp`. The public interface:
@@ -255,39 +254,24 @@ struct Canon {
   std::uint8_t sym;                  // board symmetry, index into SYMS
   std::array<std::uint8_t, 4> order; // canonical property j = original order[j]
   std::uint8_t flip;                 // bit i: original property i is inverted
-  bool symmetric; // some non-identity transformation fixes the position
-
-  Bitboard col(int j) const;         // column j of cols
-};
-
-struct Transform { // where each cell goes and what each piece becomes
-  std::array<Cell, 16> cell;
-  std::array<Piece, 16> piece;
 };
 
 Canon canonicalize(const Position &pos);
 Move to_canonical(Move m, const Canon &c);
 Move from_canonical(Move m, const Canon &c);
-std::vector<Transform> stabilizer(const Position &pos, const Canon &c);
 ```
 
 Inside `canonical.cpp`:
 
 - `occ_candidates` runs the fast path from §3.3.
 - `normalise` runs §3.2 for one symmetry and returns a `Canon` for it.
-- `canonicalize` keeps the one with the smallest `cols` and counts ties for
-  `symmetric`. The same struct serves both, so there is no separate
-  per-symmetry type.
-- `stabilizer` is explained in §5.1.
+- `canonicalize` keeps the one with the smallest `cols`. The same struct
+  serves both, so there is no separate per-symmetry type.
 
 Notes on the relabeling direction. Canonical property `j` is original property
 `i = order[j]`, inverted if `flip` bit `i` is set. So a piece's canonical bit
 `j` is `original bit i XOR flip bit i`, and `unrelabel` reverses that bit by
 bit.
-
-`stabilizer` matches symmetries by comparing `cols` directly. Every candidate
-has the same occupancy and hand, so that comparison is exact, with no hash
-involved.
 
 If two transformations tie, it doesn't matter which one is returned. Both
 produce the same canonical position, so the inverse of either one maps a
@@ -364,190 +348,28 @@ stay correct but the search gets much slower, and that is hard to notice.
 
 ---
 
-## 5. Skipping equivalent moves during generation
+## 5. Skipping equivalent moves: not needed
 
-The TT already merges equivalent subtrees *after* the first one is searched.
-In a position that maps onto itself, though, equivalent children are
-siblings, and the TT entry may not cut the second one off (wrong bound, or
-replaced). It is cleaner not to generate them at all. This can be decided
-from the move itself, without making it.
+In a position that maps onto itself (its **stabilizer**, the transformations
+`T` with `T(P) = P`, is more than the identity), a move `m` and its image
+`T(m)` lead to equivalent children. One could generate only the smallest move
+of each such group. Odin once had a `stabilizer()` for that, but it was never
+wired into the search and has been removed, because the canonical TT already
+does the job:
 
-### 5.1 The stabilizer
-
-The **stabilizer** of `P` is the set of transformations `T` (board symmetry
-plus relabeling) with `T(P) = P`. For any such `T` and any move
-`m = (cell, give)`:
-
-```
-T(P + m) = T(P) + T(m) = P + T(m),    T(m) = (T.cell[cell], T.piece[give])
-```
-
-So `m` and `T(m)` lead to equivalent children. `T` fixes the piece in hand
-(it is part of the position), so the placed piece stays the same piece. `T` also maps
-empty cells to empty cells and available pieces to available pieces, so
-`T(m)` is always legal. And `T(m)` is safe exactly when `m` is, because
-equivalent children score the same.
-
-The rule:
-
-> Search `m` only if no `T` in the stabilizer maps it to a smaller move,
-> comparing moves as `(cell, give)`.
-
-Every group of equivalent moves keeps exactly one move, the smallest, so the
-child scores still reach the same maximum. That makes the skip safe in
-fail-hard alpha-beta, at every depth (equivalent children have equal
-depth-limited values too, because `eval` is symmetric), and in any search
-order.
-
-`stabilizer()` in §3.5 builds the stabilizer. Suppose `T0, T1, …` all map `P`
-to its canonical form. Then `T0⁻¹ ∘ Tk` maps `P` onto itself, and every
-element of the stabilizer arises this way. The `Tk` are all combinations of:
-
-- a board symmetry that reaches the minimum tuple;
-- a reordering of equal property columns.
-
-Usually the stabilizer is just the identity. `c.symmetric` is false then, and
-nothing below runs.
-
-### 5.2 Splitting the rule into cells and gives
-
-The rule splits into two cheap masks:
-
-- **Cells:** if some `T` maps cell `c` to a smaller cell, every move on `c`
-  has a smaller equivalent, so skip `c` entirely.
-- **Gives:** on a cell that is kept, `c` is the smallest in its group, so
-  `T(m) < m` needs `T.cell[c] == c` and `T.piece[give] < give`. Only the
-  elements that fix `c` matter.
-
-```cpp
-// search.cpp, anonymous namespace
-
-// Cells some self-symmetry sends to a smaller cell. Every move on them has a
-// smaller equivalent.
-Bitboard skipped_cells(const std::vector<Transform> &stab) {
-  Bitboard skip = 0;
-  for (const Transform &t : stab)
-    for (int c = 0; c < 16; ++c)
-      if (t.cell[c] < c)
-        skip |= Bitboard(1u << c);
-  return skip;
-}
-
-// Gives after placing on `cell` that a self-symmetry fixing `cell` sends to a
-// smaller piece.
-Bitboard skipped_gives(const std::vector<Transform> &stab, Cell cell) {
-  Bitboard skip = 0;
-  for (const Transform &t : stab)
-    if (t.cell[cell] == cell)
-      for (int p = 0; p < 16; ++p)
-        if (t.piece[p] < p)
-          skip |= Bitboard(1u << p);
-  return skip;
-}
-
-// The smallest move equivalent to m, by (cell, give). A -1 cell (give-only
-// move at the root) is left as is and only the give is reduced.
-Move representative(Move m, const std::vector<Transform> &stab) {
-  Move best = m;
-  if (m.give < 0)
-    return best;
-  for (const Transform &t : stab) {
-    Move image = {m.cell < 0 ? m.cell : t.cell[m.cell], t.piece[m.give]};
-    if (image.cell < best.cell ||
-        (image.cell == best.cell && image.give < best.give))
-      best = image;
-  }
-  return best;
-}
-```
-
-In `negamax`, after the TT probe:
-
-```cpp
-std::vector<Transform> stab;
-if (canon && c.symmetric)
-  stab = stabilizer(pos, c);
-// The TT move may be a skipped move. Order by the equivalent move that is
-// searched instead.
-if (!stab.empty())
-  entry_move = representative(entry_move, stab);
-
-Bitboard empty = pos.empty_cells();
-if (!stab.empty())
-  empty &= ~skipped_cells(stab);
-while (empty) {
-  Cell cell = pop_first(empty, entry_move.cell);
-  pos.place_piece(cell);
-  Bitboard avail = pos.available() & ~winning_pieces(pos);
-  if (!stab.empty())
-    avail &= ~skipped_gives(stab, cell);
-  // ... rest unchanged ...
-}
-```
-
-`any_safe` stays correct. If a skipped give is safe, so is the smaller move it
-is equivalent to, and that move is searched. So the masks never empty `avail`
-when a safe give exists.
-
-`representative` leaves `EMPTY_MOVE` alone (its `give` is -1), so a missing TT
-move needs no special case.
-
-### 5.3 What this does not catch
-
-Two children can be equivalent through a `T` that does **not** fix the
-parent. For example, the placed piece maps onto a piece already on the board
-and that piece maps onto the placed one. That `T` is not in the stabilizer, so
-the rule above can't see it. Those children are ordinary transpositions: the
-second one finds the first one's entry under the canonical TT key. Catching
-them at generation time would need a canonicalisation for every child, which
-costs more than the TT probe it saves.
-
-### 5.4 The root
-
-`negamax_root` always canonicalises, whatever `CANON_MAX_PIECES` is set to,
-and uses the same masks in its placement loop. Two more details:
-
-- **The very first move** (empty board, nothing in hand).
-  `stabilizer()` does not enumerate it, because every relabeling fixes that
-  position. All 16 gives are equivalent, so search piece 0 only.
-- **`first`** (the previous iteration's pick) can be a skipped move, because
-  it was chosen from the expanded ties below. Pass it through
-  `representative` before ordering.
-
-The root picks a random move among the moves tied for best. Skipped moves
-score the same as their representative, so add them back afterwards by
-applying the stabilizer to every best move:
-
-```cpp
-// After the loops, when the search was not stopped and stab is non-empty.
-std::size_t searched = best_moves.size();
-for (std::size_t k = 0; k < searched; ++k)
-  for (const Transform &t : stab) {
-    Move m = best_moves[k].move;
-    Move image = {m.cell < 0 ? m.cell : t.cell[m.cell],
-                  m.give < 0 ? m.give : t.piece[m.give]};
-    bool known = std::any_of(best_moves.begin(), best_moves.end(),
-                             [&](const Result &r) { return r.move == image; });
-    if (!known)
-      best_moves.push_back({best, image});
-  }
-```
-
-At the very first move, add all 16 gives instead. The random pick then chooses
-among the same moves as without symmetry, so a fixed seed still produces a
-reproducible game.
-
-### 5.5 Size of the savings
-
-- **Empty board:** 16 gives become 1.
-- **First placement:** 16 cells become 2, one on a diagonal and one off
-  them. "Inside out" sends a corner to the centre, so corner and centre cells
-  are equivalent here, unlike under rotations alone. The stabilizer at this
-  position has 32 × 24 = 768 elements: every board symmetry, combined with
-  every relabeling that fixes the piece in hand.
-- **Later:** the stabilizer shrinks quickly and is usually only the identity
-  after a few pieces. Then `c.symmetric` is false and generation costs
-  nothing extra.
+- Equivalent children share one canonical TT key (§4), so the second sibling
+  probes the first one's entry instead of searching its subtree.
+- That entry always cuts off. Equivalent children have the same value `v`,
+  and alpha only rises across siblings. If the first child caused a beta
+  cutoff, the second is never reached. Otherwise the first stored an exact `v`
+  or an upper bound at most alpha, and either one cuts at the second child's
+  probe, where alpha is at least as high.
+- So skipping would save only the make-move, `canonicalize` and probe per
+  duplicate child, against the cost of building the stabilizer. It would only
+  save more when the entry is evicted between siblings, or past
+  `CANON_MAX_PIECES`, where symmetric positions are rare.
+- The positions where symmetry is common, the first few plies, are covered by
+  Optimal's opening book.
 
 ---
 
@@ -649,19 +471,6 @@ There is no test target yet. Add a small `odin_tests` executable that links
 - **Known counts:** the empty board with nothing in hand gives one class. Its
   16 give-children give one class. Placing the held piece gives 2 classes of
   cells (diagonal and off-diagonal).
-- **`symmetric`:** true for the empty board and for one piece on the board;
-  false for most random positions with 6 or more pieces.
-
-**Stabilizer**
-
-- Every element maps the position onto itself: apply it to every piece on the
-  board and to the hand, and compare with the original.
-- The identity is always included, and there are no duplicates.
-- Size checks: empty board with a piece in hand gives 768. For random
-  positions, compare against a brute force over all 12,288 transformations.
-- The skip masks keep exactly one move per group: for random symmetric
-  positions, compare the generated moves against grouping all legal moves by
-  their child's canonical key.
 
 **Move mapping**
 
@@ -690,11 +499,9 @@ There is no test target yet. Add a small `odin_tests` executable that links
 1. Tables (`SYMS`, `INV_SYMS`, `SYM_BITS`, `apply_sym`) and their tests.
 2. `canonicalize`, `to_canonical`, `from_canonical` and their tests.
 3. Canonical keys in `negamax` (§4), and check "same results, fewer nodes".
-4. `stabilizer` and its tests, then skipping at the root (§5.4), then in
-   `negamax` (§5.2).
-5. A two-entry TT bucket and a large TT (§6.2).
-6. Move ordering (§6.3).
-7. Solve curve from about 8 pieces down to the empty board.
+4. A two-entry TT bucket and a large TT (§6.2).
+5. Move ordering (§6.3).
+6. Solve curve from about 8 pieces down to the empty board.
 
 Each step keeps the engine correct on its own, so you can benchmark after
 every step and drop any step that doesn't pay off.

@@ -3,7 +3,6 @@
 #include <array>
 #include <cstdint>
 #include <utility>
-#include <vector>
 
 #include "position.hpp"
 #include "types.hpp"
@@ -82,19 +81,6 @@ struct Canon {
   std::uint8_t sym;                  // board symmetry, index into SYMS
   std::array<std::uint8_t, 4> order; // canonical property j = original order[j]
   std::uint8_t flip;                 // bit i: original property i is inverted
-  // Some non-identity transformation maps the position onto itself, so some
-  // of its moves are equivalent (see stabilizer). May be true when it is not,
-  // which only costs time; never false when it is.
-  bool symmetric;
-
-  Bitboard col(int j) const { return Bitboard(cols >> (16 * j)); }
-};
-
-// A transformation as lookup tables: where each cell goes and what each piece
-// becomes.
-struct Transform {
-  std::array<Cell, 16> cell;
-  std::array<Piece, 16> piece;
 };
 
 Canon canonicalize(const Position &pos);
@@ -102,11 +88,5 @@ Canon canonicalize(const Position &pos);
 // Real frame -> canonical frame and back. -1 cells and pieces pass through.
 Move to_canonical(Move m, const Canon &c);
 Move from_canonical(Move m, const Canon &c);
-
-// Every transformation that maps pos onto itself, the identity included. Only
-// worth calling when c.symmetric. The empty board with nothing in hand is
-// fixed by every relabeling, which this does not enumerate: callers handle
-// that position themselves.
-std::vector<Transform> stabilizer(const Position &pos, const Canon &c);
 
 } // namespace quarto
