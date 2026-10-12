@@ -79,8 +79,9 @@ private:
   // Positions with at most this many pieces are keyed by their canonical
   // form, so equivalent positions share a TT entry; deeper ones by the
   // position as it is. The piece count decides, so a position always gets the
-  // same kind of key, and the two kinds never meet.
-  static constexpr int CANON_MAX_PIECES = 10;
+  // same kind of key, and the two kinds never meet. -1 turns canonical keys
+  // off, which only the check program does.
+  int canon_max_pieces_ = 10;
 
   // Fail-hard alpha-beta value of `pos` for the side to move, in a position
   // where the piece in hand cannot win (the parent only gives safe pieces).
@@ -93,6 +94,8 @@ public:
   // Once *stop is true, solve() returns as soon as it can, with a meaningless
   // result, and stores nothing more in the TT, so the TT stays correct.
   void set_stop(const std::atomic<bool> *stop) { stop_ = stop; }
+  // Clear the TT after changing this: the two kinds of key must not meet.
+  void set_canon_max_pieces(int n) { canon_max_pieces_ = n; }
   // `pos` is modified during the solve and restored before returning.
   SolveResult solve(Position &pos);
   // Solves the empty board on `threads` threads sharing the TT: each solves

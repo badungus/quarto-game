@@ -276,7 +276,7 @@ Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
   if (pieces == 15)
     return SOLVED_DRAW;
 
-  const bool canon = pieces <= CANON_MAX_PIECES;
+  const bool canon = pieces <= canon_max_pieces_;
   Canon c{};
   TTKey key;
   // The whole position, so TT matches are exact. The parent always gives
