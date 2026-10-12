@@ -21,3 +21,6 @@ target_link_libraries(optimal PRIVATE optimal_core)
 # and survives a clean build. Both the engine and --full use this path.
 target_compile_definitions(optimal PRIVATE
     OPTIMAL_BOOK_PATH="${CMAKE_CURRENT_SOURCE_DIR}/book.txt")
+
+target_compile_definitions(optimal PRIVATE
+    OPTIMAL_SQUARES_BOOK_PATH="${CMAKE_CURRENT_SOURCE_DIR}/square_book.txt")

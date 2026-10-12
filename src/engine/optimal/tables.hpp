@@ -12,6 +12,15 @@ inline constexpr std::array<Bitboard, 10> LINES = {
     0x8421, 0x1248                  // diagonals
 };
 
+inline constexpr std::array<Bitboard, 19> WIN_CONDITIONS = {
+    0x000F, 0x00F0, 0x0F00, 0xF000,         // rows 0-3
+    0x1111, 0x2222, 0x4444, 0x8888,         // cols 0-3
+    0x8421, 0x1248,                         // diagonals
+    0x0033, 0x0066, 0x00CC, 0x0330, 0x0660, // 2x2 squares
+    0x0CC0, 0x3300, 0x6600, 0xCC00};        // 2x2 squares
+
+inline bool squares_win = false;
+
 // The lines through one cell: 2 normally, 3 on a diagonal. Fixed capacity so
 // the whole table can be constexpr - a std::vector cannot outlive constant
 // evaluation.

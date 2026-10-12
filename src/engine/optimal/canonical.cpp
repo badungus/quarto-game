@@ -48,14 +48,18 @@ void sort4(std::array<Bitboard, 4> &q, std::array<std::uint8_t, 4> &idx) {
   cmp_swap(1, 2);
 }
 
+constexpr std::uint32_t SQUARE_SYMS = 0xF000000Fu; // syms 0-3 and 28-31
 // The symmetries with the smallest permuted occupancy, as a bit mask. The
 // canonical form has the smallest occupancy first, so only these can reach
 // it. Sets occ to that occupancy. Starts from the identity, SYMS[0]: a full
 // board is 0xFFFF, so no Bitboard value is free to serve as "none yet".
 std::uint32_t occ_candidates(const Position &pos, Bitboard &occ) {
+  const std::uint32_t allowed = squares_win ? SQUARE_SYMS : ~0u;
   occ = pos.occupied();
   std::uint32_t candidates = 1; // bit s set: SYMS[s] reaches occ
   for (int s = 1; s < SYM_COUNT; ++s) {
+    if (!((allowed >> s) & 1))
+      continue;
     Bitboard o = apply_sym(s, pos.occupied());
     if (o < occ) {
       occ = o;

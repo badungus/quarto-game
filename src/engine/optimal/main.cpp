@@ -20,6 +20,7 @@
 #include "engine.hpp"
 #include "position.hpp"
 #include "solve.hpp"
+#include "tables.hpp"
 #include "tt.hpp"
 #include "uqi.hpp"
 
@@ -30,7 +31,6 @@
 #include <thread>
 
 int main(int argc, char **argv) {
-  const std::string book = OPTIMAL_BOOK_PATH; // set by CMake
 
   bool full = false;
   std::string position; // set by --solve
@@ -41,6 +41,8 @@ int main(int argc, char **argv) {
     std::string arg = argv[i];
     if (arg == "--full") {
       full = true;
+    } else if (arg == "--squares") {
+      quarto::squares_win = true;
     } else if (arg == "--solve" && i + 1 < argc) {
       position = argv[++i];
       bad_args = !quarto::valid_position(position);
@@ -58,6 +60,9 @@ int main(int argc, char **argv) {
                          "       optimal --full [--threads N] [--tt MB]\n");
     return 1;
   }
+  const std::string book = quarto::squares_win
+                               ? OPTIMAL_SQUARES_BOOK_PATH
+                               : OPTIMAL_BOOK_PATH; // set by CMake
 
   if (!full && position.empty()) {
     quarto::Engine engine(book);
@@ -68,8 +73,8 @@ int main(int argc, char **argv) {
   quarto::TranspositionTable tt(tt_mb);
   quarto::Solver solver(tt);
   if (full)
-    std::printf("book:     %s\ntt:       %zu MB\nthreads:  %u\n",
-                book.c_str(), tt_mb, threads);
+    std::printf("book:     %s\ntt:       %zu MB\nthreads:  %u\n", book.c_str(),
+                tt_mb, threads);
   else
     std::printf("position: %s\ntt:       %zu MB\n", position.c_str(), tt_mb);
   std::fflush(stdout);
@@ -94,10 +99,10 @@ int main(int argc, char **argv) {
   } else {
     std::printf("result:   %s for the side to move\n",
                 quarto::outcome(result.value));
-    std::printf("move:     %s\n",
-                quarto::format_move(result.move,
-                                    result.value == quarto::SOLVED_WIN)
-                    .c_str());
+    std::printf(
+        "move:     %s\n",
+        quarto::format_move(result.move, result.value == quarto::SOLVED_WIN)
+            .c_str());
   }
   std::printf("nodes:    %llu\ntime:     %.2f s (%.1f M nodes/s)\n",
               (unsigned long long)solver.nodes(), s,
