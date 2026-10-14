@@ -36,6 +36,11 @@ add_subdirectory(src/engine/baldur)
 
 add_subdirectory(src/engine/optimal)
 
+# Compile-time proof that the solver's board symmetries are complete and
+# correct (static_asserts only). Part of ALL, so a wrong table fails the build.
+add_library(syms_proof OBJECT proof/syms.cpp)
+target_link_libraries(syms_proof PRIVATE optimal_core)
+
 add_executable(quarto
     src/main.cpp
     src/game/game_state.cpp

@@ -1,5 +1,5 @@
 #pragma once
-#include <command.hpp>
+#include "command.hpp"
 #include <optional>
 
 enum class ScreenId { Menu, Game, Result };

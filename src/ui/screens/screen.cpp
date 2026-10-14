@@ -4,7 +4,6 @@
 #include "layout.hpp"
 #include "nav.hpp"
 #include "raylib.h"
-#include "results_screen.hpp"
 #include <optional>
 
 Screen::Screen(const Assets &assets)

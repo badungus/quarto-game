@@ -63,6 +63,10 @@ constexpr std::array<std::array<Cell, 16>, SYM_COUNT> make_syms() {
 
 inline constexpr auto SYMS = make_syms();
 
+// Bit s set: SYMS[s] also maps the 2x2 squares onto 2x2 squares, so it is a
+// symmetry when squares win. proof/syms.cpp checks this is exactly SYMS[0..7].
+inline constexpr std::uint32_t SQUARE_SYMS = 0x000000FFu;
+
 // INV_SYMS[s] undoes SYMS[s].
 constexpr std::array<std::array<Cell, 16>, SYM_COUNT> make_inv_syms() {
   std::array<std::array<Cell, 16>, SYM_COUNT> inv{};

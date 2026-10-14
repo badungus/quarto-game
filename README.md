@@ -303,7 +303,7 @@ game/      Game state, Move, rules
 - The GUI never links an engine. `EnginePlayer` starts the engine executable as
   a child process and talks to it over UQI.
 - Screens read the game state but never change it directly: user actions
-  become commands (`src/match/command.hpp`) that the match controller applies.
+  become commands (`src/game/command.hpp`) that the match controller applies.
 
 ### Data encoding
 
@@ -318,7 +318,7 @@ game/      Game state, Move, rules
 - **Adding an engine**: create `src/engine/<name>/` with its own
   `CMakeLists.txt`, add `add_subdirectory(src/engine/<name>)` to the root
   `CMakeLists.txt`, and add an entry to `ENGINES` in
-  `src/match/match_config.hpp`.
+  `src/game/match_config.hpp`.
 - **New GUI `.cpp` files must be added to `add_executable` in
   `CMakeLists.txt`**, otherwise the link step fails with "undefined reference"
   errors.

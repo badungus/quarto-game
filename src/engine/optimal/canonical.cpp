@@ -48,8 +48,6 @@ void sort4(std::array<Bitboard, 4> &q, std::array<std::uint8_t, 4> &idx) {
   cmp_swap(1, 2);
 }
 
-constexpr std::uint32_t SQUARE_SYMS = 0x000000FFu; // syms 0-7
-
 // The symmetries with the smallest permuted occupancy, as a bit mask. The
 // canonical form has the smallest occupancy first, so only these can reach
 // it. Sets occ to that occupancy. Starts from the identity, SYMS[0]: a full
