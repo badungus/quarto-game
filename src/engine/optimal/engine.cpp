@@ -41,20 +41,21 @@ Result Engine::best_move(Position &pos) {
     auto it = book_.find({c.cols, c.occ});
     // Without a book the value is unknown; Quarto is known to be a draw.
     const bool found = it != book_.end();
-    return {found ? Score(-it->second.value) : SOLVED_DRAW, {-1, 0}, depth,
-            found, 0};
+    const Score value = found ? Score(-it->second.value) : SOLVED_DRAW;
+    return {value, {-1, 0}, depth, found, 0, mate_distance(value, pos)};
   }
   if (pos.in_hand() >= 0) {
     Canon c = canonicalize(pos);
     if (auto it = book_.find({c.cols, c.occ}); it != book_.end())
       return {it->second.value, from_canonical(it->second.move, c), depth,
-              true, 0};
+              true, 0, mate_distance(it->second.value, pos)};
   }
-  // Every TT entry is a proven result, so entries from earlier moves stay
-  // valid; the new generation only lets them be replaced.
+  // Every TT entry is a bound on a proven score, so entries from earlier
+  // moves stay valid; the new generation only lets them be replaced.
   tt_.new_search();
   SolveResult r = solver_.solve(pos);
-  return {r.value, r.move, depth, false, solver_.nodes()};
+  return {r.value,          r.move, depth, false,
+          solver_.nodes(), mate_distance(r.value, pos)};
 }
 
 void Engine::set_position(

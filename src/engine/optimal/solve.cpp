@@ -61,12 +61,17 @@ SolveResult Solver::full_solve(unsigned threads,
   for (const Position &job : jobs)
     canons.push_back(canonicalize(job));
 
-  // Jobs solved by an earlier, interrupted run.
+  // Jobs solved by an earlier, interrupted run. A win or loss with no
+  // distance comes from a book written before solves had them.
   Book book = read_book(book_path);
   std::vector<std::size_t> todo;
-  for (std::size_t i = 0; i < jobs.size(); ++i)
-    if (!book.contains({canons[i].cols, canons[i].occ}))
+  for (std::size_t i = 0; i < jobs.size(); ++i) {
+    auto it = book.find({canons[i].cols, canons[i].occ});
+    if (it == book.end() ||
+        (it->second.value != SOLVED_DRAW && it->second.value < PROVEN &&
+         it->second.value > -PROVEN))
       todo.push_back(i);
+  }
   std::printf("jobs:     %zu, %zu already in %s\n", jobs.size(),
               jobs.size() - todo.size(), book_path.c_str());
   std::fflush(stdout);
@@ -141,8 +146,9 @@ Score Solver::combine(int ply, Position &pos, Book &book,
   // A job, or a position this run already combined (as an equivalent one).
   if (ply == SEARCH_START_PLY || done.contains(key))
     return book.at(key).value;
-  // Same moves as find_position, which are the moves negamax searches.
-  Score best = SOLVED_LOSS;
+  // Same moves as find_position, which are the moves negamax searches. With
+  // none, the opponent wins with the next placement.
+  Score best = Score(-win_score(std::popcount(pos.occupied()) + 2));
   Move best_move = EMPTY_MOVE;
   for (Bitboard empty = pos.empty_cells(); empty; empty &= empty - 1) {
     const Cell cell = Cell(std::countr_zero(empty));
@@ -217,50 +223,73 @@ SolveResult Solver::solve(Position &pos) {
   if (pos.empty_cells() == 0)
     return {SOLVED_DRAW, EMPTY_MOVE}; // board full
 
-  Score alpha = SOLVED_LOSS;
-  const Score beta = SOLVED_WIN;
-
-  if (pos.in_hand() < 0) {
-    // Nothing in hand: giving is the only move. Giving a piece that
-    // completes a line loses at once, so only safe pieces are searched.
-    // On the empty board every piece is equivalent to every other.
-    Bitboard safe = 0;
-    if (pos.occupied() == 0)
-
-      safe = Bitboard{1};
-    else {
-      safe = pos.available() & ~winning_pieces(pos);
+  const int pieces = std::popcount(pos.occupied());
+  if (pos.in_hand() >= 0) {
+    // The piece in hand may win outright, or fill the board.
+    for (Bitboard e = pos.empty_cells(); e; e &= e - 1) {
+      Cell cell = Cell(std::countr_zero(e));
+      pos.place_piece(cell);
+      bool win = move_wins(pos, cell);
+      pos.undo_place_piece();
+      if (win)
+        return {win_score(pieces + 1), {cell, -1}};
     }
-    Move best = EMPTY_MOVE;
-    for (; safe && alpha < beta; safe &= safe - 1) {
-      Piece piece = Piece(std::countr_zero(safe));
-      pos.give_piece(piece);
-      Score score = -negamax(pos, -beta, -alpha);
-      pos.undo_give_piece();
-      if (score > alpha) {
-        alpha = score;
-        best = {-1, piece};
-      }
-    }
-    return {alpha, best.give >= 0 ? best : any_move(pos)};
+    if (pieces == 15)
+      return {SOLVED_DRAW, {Cell(std::countr_zero(pos.empty_cells())), -1}};
   }
 
-  // The piece in hand may win outright, or fill the board.
-  for (Bitboard e = pos.empty_cells(); e; e &= e - 1) {
-    Cell cell = Cell(std::countr_zero(e));
-    pos.place_piece(cell);
-    bool win = move_wins(pos, cell);
-    pos.undo_place_piece();
-    if (win)
-      return {SOLVED_WIN, {cell, -1}};
-  }
-  if (std::popcount(pos.occupied()) == 15)
-    return {SOLVED_DRAW, {Cell(std::countr_zero(pos.empty_cells())), -1}};
-
+  // The result first, then for a win or loss its exact score (see
+  // solve.hpp). The windows are open on both sides of every score they can
+  // hold, so the score that comes back is exact.
   Move best = EMPTY_MOVE;
-  Score value = negamax(pos, alpha, beta, &best);
-  // No move beat a loss: all of them lose, so any one will do.
-  return {value, best.cell >= 0 ? best : any_move(pos)};
+  Score value = search_root(pos, -1, 1, best);
+  if (value >= 1)
+    value = search_root(pos, Score(PROVEN - 1), WIN, best);
+  else if (value <= -1)
+    value = search_root(pos, Score(-WIN), Score(1 - PROVEN), best);
+  // No move beat a loss at once: all of them lose at once, so any one will do.
+  return {value, best != EMPTY_MOVE ? best : any_move(pos)};
+}
+
+Score Solver::search_root(Position &pos, Score alpha, Score beta, Move &best) {
+  best = EMPTY_MOVE;
+  if (pos.in_hand() >= 0)
+    return negamax(pos, alpha, beta, &best);
+
+  // Nothing in hand: giving is the only move. Giving a piece that completes
+  // a line loses at once, so only safe pieces are searched. On the empty
+  // board every piece is equivalent to every other.
+  Bitboard safe = pos.occupied() == 0
+                      ? Bitboard{1}
+                      : Bitboard(pos.available() & ~winning_pieces(pos));
+  // No safe piece: the opponent wins with the next placement.
+  if (!safe)
+    return Score(-win_score(std::popcount(pos.occupied()) + 1));
+  for (; safe && alpha < beta; safe &= safe - 1) {
+    Piece piece = Piece(std::countr_zero(safe));
+    pos.give_piece(piece);
+    Score score = Score(-negamax(pos, Score(-beta), Score(-alpha)));
+    pos.undo_give_piece();
+    if (score > alpha) {
+      alpha = score;
+      best = {-1, piece};
+    }
+  }
+  return alpha;
+}
+
+int mate_distance(Score value, const Position &pos) {
+  // A win that leaves n pieces on the board is placed at ply n - first,
+  // counted from 0 here, where `first` is the piece count after the first
+  // placement from here; even plies are the side to move's. With nothing in
+  // hand the side to move only gives, so the opponent places at ply 1.
+  const int first =
+      std::popcount(pos.occupied()) + (pos.in_hand() >= 0 ? 1 : 0);
+  if (value >= PROVEN)
+    return (WIN - value - first) / 2 + 1;
+  if (value <= -PROVEN)
+    return -((WIN + value - first + 1) / 2);
+  return 0;
 }
 
 Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
@@ -389,8 +418,9 @@ Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
   // Every give, after every placement, lets the opponent win with the
   // next piece.
   if (!any_safe) {
-    tt_.store(key, SOLVED_LOSS, depth, EMPTY_MOVE, Bound::Exact);
-    return SOLVED_LOSS;
+    const Score loss = Score(-win_score(pieces + 2));
+    tt_.store(key, loss, depth, EMPTY_MOVE, Bound::Exact);
+    return loss;
   }
   if (!stopped())
     tt_.store(key, alpha, depth, to_tt(best_move),

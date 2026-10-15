@@ -17,14 +17,15 @@ const int DEFAULT_TT_SIZE = 2048;
 const std::tuple<Bitboard, std::array<Bitboard, 4>, Piece> DEFAULT_POSITION = {
     0xffff, {0, 0, 0, 0}, -1};
 
-// The engine's answer to go: the proven value for the side to move
-// (SOLVED_WIN, SOLVED_DRAW or SOLVED_LOSS) and a move that achieves it.
+// The engine's answer to go: the proven value for the side to move (a score
+// as Solver::solve returns it) and a move that achieves it.
 struct Result {
   Score value;
   Move move;
   int depth;           // placements left: the result covers all of them
   bool from_book;      // looked up, not solved
   std::uint64_t nodes; // nodes the solve visited, 0 from the book
+  int mate;            // mate_distance of value, 0 for a draw
 };
 
 // Plays only proven moves: from the opening book while the position is in

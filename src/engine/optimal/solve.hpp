@@ -14,31 +14,49 @@
 namespace quarto {
 
 // Proves the game-theoretic value of a position: whether the side to move
-// wins, draws or loses with perfect play from both sides.
+// wins, draws or loses with perfect play from both sides, and how soon.
 //
-// It does not look for the fastest win, only for the result, so it searches
-// with the window (-1, 1): the first win found below a node cuts it off. It
-// searches to the end of the game, with no depth limit, no time limit and no
-// iterative deepening. Every TT entry is a proven result, so the TT stays valid
-// from one solve to the next.
+// A win scores WIN - n, with n the pieces on the board after the winning
+// placement, so the sooner the win, the higher the score; a loss scores the
+// negation, a draw 0. The score depends only on the piece count, not on the
+// path, so equivalent positions share it and it can go in the TT.
+//
+// A solve searches twice. First with the window (-1, 1), for the result only:
+// every win scores at least 1, so the first win found below a node cuts it
+// off, as fast as a search that knows no distances. A draw is done then. A
+// win or loss is searched again with a window that holds only wins (or only
+// losses), for the exact score: moves that do not win fail low at once, and
+// the first search left the TT full of winning moves to try first. Both
+// searches go to the end of the game, with no depth limit, no time limit and
+// no iterative deepening. Every TT entry is a bound on a proven score, so the
+// TT stays valid from one solve to the next.
 
-constexpr Score SOLVED_WIN = 1;
 constexpr Score SOLVED_DRAW = 0;
-constexpr Score SOLVED_LOSS = -1;
+// Every win scores at least this, as a full board holds 16 pieces, and every
+// loss at most its negation.
+constexpr Score PROVEN = WIN - 16;
+// The score of a win by the placement that makes `pieces` pieces on the board.
+constexpr Score win_score(int pieces) { return Score(WIN - pieces); }
 
 inline const char *outcome(Score value) {
-  if (value == SOLVED_WIN)
+  if (value > 0)
     return "win";
-  if (value == SOLVED_LOSS)
+  if (value < 0)
     return "loss";
   return "draw";
 }
 
+// The value as UQI's mate: n when the side to move wins with its nth
+// placement from `pos`, -n when the opponent wins with its nth, 0 for a draw
+// or a value without a distance (a win or loss from a book written before
+// solves had distances, stored as 1 or -1).
+int mate_distance(Score value, const Position &pos);
+
 struct SolveResult {
-  Score value; // SOLVED_WIN, SOLVED_DRAW or SOLVED_LOSS for the side to move
+  Score value; // the score for the side to move, as above
   // A move that achieves `value`: {cell, give}, cell -1 at the
   // opening, give -1 when the placement ends the game. When every move loses,
-  // some legal move. EMPTY_MOVE only on a full board.
+  // one that loses as late as possible. EMPTY_MOVE only on a full board.
   Move move;
 };
 
@@ -55,6 +73,7 @@ using Book = std::map<CanonKey, BookEntry>;
 // The opening book written by Solver::full_solve. One position per line:
 // cols and occ in hex, then value, cell and give. Lines that do not parse
 // (comments start with '#') are skipped; a missing file is an empty book.
+// Books from before solves had distances store wins and losses as 1 and -1.
 Book read_book(const std::string &path);
 
 class Solver {
@@ -88,6 +107,9 @@ private:
   // At the root, best_out receives the move that raised alpha, if any.
   Score negamax(Position &pos, Score alpha, Score beta,
                 Move *best_out = nullptr);
+  // negamax for the root of a solve, which may also have nothing in hand.
+  // `best` receives the move that raised alpha, or EMPTY_MOVE.
+  Score search_root(Position &pos, Score alpha, Score beta, Move &best);
 
 public:
   explicit Solver(TranspositionTable &tt) : tt_(tt) {}
@@ -104,7 +126,8 @@ public:
   //
   // `book_path` is an opening book and a checkpoint at once. Each solved job
   // is appended to it as it finishes, and jobs already in it are skipped, so
-  // an interrupted solve resumes where it stopped. At the end the file is
+  // an interrupted solve resumes where it stopped. Wins and losses without a
+  // distance (an older book) are solved again. At the end the file is
   // rewritten with every position from the empty board down to the jobs.
   // One position per line: cols and occ in hex, then value, cell and give,
   // the move in the canonical frame.

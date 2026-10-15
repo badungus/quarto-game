@@ -51,10 +51,13 @@ void uqi_loop(Engine &engine) {
     if (tokens[0] == "go") {
       engine.go([](const Result &r) {
         // One info line, so the GUI shows the result: the depth is the rest
-        // of the game, the score WIN, 0 or -WIN for a win, draw or loss.
-        const bool win = r.value == SOLVED_WIN;
+        // of the game, the score WIN, 0 or -WIN for a win, draw or loss, and
+        // mate how soon, when the value has a distance.
+        const bool win = r.value > 0;
+        const int score = r.value > 0 ? WIN : r.value < 0 ? -WIN : 0;
         std::osyncstream(std::cout)
-            << "info depth " << r.depth << " score " << r.value * WIN
+            << "info depth " << r.depth << " score " << score
+            << (r.mate != 0 ? " mate " + std::to_string(r.mate) : "")
             << " nodes " << r.nodes << " move " << format_move(r.move, win)
             << (r.from_book ? " book" : "") << "\n"
             << "bestmove " << format_move(r.move, win) << std::endl;

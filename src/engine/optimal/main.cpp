@@ -14,7 +14,8 @@
 //
 // --solve proves whether the side to move wins, draws or loses in POSITION
 // (UQI format, e.g. ChSfchsf../ChSF..chSF/..../...chsF|chSF) on one thread,
-// without the book, and prints a move achieving it, the nodes and the time.
+// without the book, and prints how soon (mate, as in UQI), a move achieving
+// it, the nodes and the time.
 // --tt is the TT size in MB for both (default 8192).
 
 #include "engine.hpp"
@@ -80,15 +81,16 @@ int main(int argc, char **argv) {
   std::fflush(stdout);
 
   const auto start = std::chrono::steady_clock::now();
-  quarto::SolveResult result;
+  // The solved position: the empty board with nothing in hand for --full.
+  quarto::Position pos;
   if (full) {
-    result = solver.full_solve(threads, book);
+    pos.load(0, {0, 0, 0, 0}, -1);
   } else {
     auto [occ, prop, hand] = quarto::parse_position(position);
-    quarto::Position pos;
     pos.load(occ, prop, hand);
-    result = solver.solve(pos);
   }
+  quarto::SolveResult result =
+      full ? solver.full_solve(threads, book) : solver.solve(pos);
   const double s =
       std::chrono::duration<double>(std::chrono::steady_clock::now() - start)
           .count();
@@ -99,11 +101,12 @@ int main(int argc, char **argv) {
   } else {
     std::printf("result:   %s for the side to move\n",
                 quarto::outcome(result.value));
-    std::printf(
-        "move:     %s\n",
-        quarto::format_move(result.move, result.value == quarto::SOLVED_WIN)
-            .c_str());
   }
+  if (int mate = quarto::mate_distance(result.value, pos))
+    std::printf("mate:     %d\n", mate);
+  if (!full)
+    std::printf("move:     %s\n",
+                quarto::format_move(result.move, result.value > 0).c_str());
   std::printf("nodes:    %llu\ntime:     %.2f s (%.1f M nodes/s)\n",
               (unsigned long long)solver.nodes(), s,
               s > 0 ? solver.nodes() / s / 1e6 : 0.0);
