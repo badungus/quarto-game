@@ -29,6 +29,14 @@ Move any_move(const Position &pos) {
       pos.available() ? Piece(std::countr_zero(pos.available())) : Piece(-1);
   return {cell, give};
 }
+
+// Removes and returns `first` from `set` if it is in it, otherwise the lowest
+// index.
+int pop_first(Bitboard &set, int first) {
+  int i = (first >= 0 && (set >> first & 1)) ? first : std::countr_zero(set);
+  set &= ~(Bitboard{1} << i);
+  return i;
+}
 } // namespace
 
 // The jobs are the positions this many turns in (= pieces placed), and the
@@ -459,67 +467,37 @@ Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
   Move best_move = EMPTY_MOVE;
   bool any_safe = false; // some placement left a give that does not lose
 
-  // Gives `piece` once the placement on `cell` is made, and searches it.
-  // True when it cuts this node off.
-  auto search_give = [&](Cell cell, Piece piece) {
-    pos.give_piece(piece);
-    Score score = -negamax(pos, -beta, -alpha);
-    pos.undo_give_piece();
-    if (score > alpha) {
-      alpha = score;
-      best_move = {cell, piece};
-    }
-    return alpha >= beta;
-  };
-  auto cutoff = [&] {
-    if (!stopped())
-      tt_.store(key, alpha, depth, to_tt(best_move), Bound::Lower);
-    if (best_out)
-      *best_out = best_move;
-    return alpha;
-  };
-
-  // Stage 1: the TT move, before anything else. It may come from an
-  // equivalent position or, very rarely, a hash collision, so it is
-  // checked first: the cell must be empty, and the piece available and
-  // safe after the placement. Searching an unsafe give would break the
-  // invariant that the piece in hand cannot win. tt_cell is the TT move's
-  // cell, or -1 when there is no TT move to try.
-  const Cell tt_cell = entry_move.cell >= 0 && entry_move.give >= 0 &&
-                               (pos.empty_cells() >> entry_move.cell & 1)
-                           ? entry_move.cell
-                           : Cell(-1);
-  // The safe gives on tt_cell other than the TT give, for stage 2:
-  // placing there was needed anyway to check the TT give, so it is not
-  // repeated.
-  Bitboard tt_cell_safe = 0;
-  if (tt_cell >= 0) {
-    pos.place_piece(tt_cell);
-    Bitboard safe = pos.available() & ~winning_pieces(pos);
-    if (safe >> entry_move.give & 1) {
-      any_safe = true;
-      if (search_give(tt_cell, entry_move.give)) {
-        pos.undo_place_piece();
-        return cutoff();
-      }
-    }
-    tt_cell_safe = safe & ~(Bitboard{1} << entry_move.give);
-    pos.undo_place_piece();
-  }
-
-  // Stage 2: every other move, cells and pieces in index order.
-  for (Bitboard empty = pos.empty_cells(); empty; empty &= empty - 1) {
-    Cell cell = Cell(std::countr_zero(empty));
+  // Cells and pieces in index order, except that the TT move comes first:
+  // its cell before the other cells, and its give first on that cell. It may
+  // come from an equivalent position or, very rarely, a hash collision, but
+  // pop_first only takes it if the cell is empty and the piece is available
+  // and safe, so it needs no separate check. Unsafe gives are never
+  // searched: they would break the invariant that the piece in hand cannot
+  // win.
+  Bitboard empty = pos.empty_cells();
+  while (empty) {
+    Cell cell = Cell(pop_first(empty, entry_move.cell));
     pos.place_piece(cell);
-    Bitboard avail = cell == tt_cell
-                         ? tt_cell_safe
-                         : Bitboard(pos.available() & ~winning_pieces(pos));
+    Bitboard avail = pos.available() & ~winning_pieces(pos);
     if (avail)
       any_safe = true;
-    for (; avail; avail &= avail - 1) {
-      if (search_give(cell, Piece(std::countr_zero(avail)))) {
+    while (avail) {
+      Piece give = Piece(
+          pop_first(avail, cell == entry_move.cell ? entry_move.give : -1));
+      pos.give_piece(give);
+      Score score = -negamax(pos, -beta, -alpha);
+      pos.undo_give_piece();
+      if (score > alpha) {
+        alpha = score;
+        best_move = {cell, give};
+      }
+      if (alpha >= beta) {
         pos.undo_place_piece();
-        return cutoff();
+        if (!stopped())
+          tt_.store(key, alpha, depth, to_tt(best_move), Bound::Lower);
+        if (best_out)
+          *best_out = best_move;
+        return alpha;
       }
     }
     pos.undo_place_piece();
