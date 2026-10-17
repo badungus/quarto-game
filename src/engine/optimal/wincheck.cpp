@@ -99,9 +99,6 @@ std::array<int, 16> cell_priors(const Position &pos) {
       prior[c] -= std::popcount(
           Bitboard(completes[s | Bitboard{1} << c] & empty));
   }
-  if (std::popcount(occ) == 14)
-    for (int &p : prior)
-      p = -p;
   return prior;
 }
 

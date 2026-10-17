@@ -31,6 +31,7 @@ private:
   TextField seed_field_;
   Dropdown player_1_dd_;
   Dropdown player_2_dd_;
+  Button rules_; // normal or 2x2 squares
   // Per engine, one widget per ENGINE_SETTINGS entry.
   std::array<std::vector<std::variant<TextField, Button>>, 2> settings_ui_;
 
@@ -39,6 +40,7 @@ private:
   std::array<int, 2> engines_{0, 1};
   std::array<std::vector<std::string>, 2> settings_{default_settings(),
                                                     default_settings()};
+  bool squares_ = false;
 
   bool running_ = false;
   MatchConfig saved_config_; // the main menu's config, restored afterwards
@@ -70,8 +72,8 @@ public:
               MatchConfig &match_config, const Assets &assets);
   Action update(const Input &in);
   void draw();
-  // Takes the main menu's settings, and its engines where it picked engines,
-  // as the starting setup. Called when the screen is entered.
+  // Takes the main menu's settings and rules, and its engines where it picked
+  // engines, as the starting setup. Called when the screen is entered.
   void load_config();
   // Abandons the match, e.g. because the screen was left.
   void stop();

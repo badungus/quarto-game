@@ -45,11 +45,6 @@ std::array<Score, 16> compute_prior(const Position &pos) {
           std::popcount(Bitboard(table[same[i] | (Bitboard{1} << c)] & empty));
     }
   }
-  if (std::popcount(occ) == 14) {
-    for (int k = 0; k < 16; ++k) {
-      prior[k] = -prior[k];
-    }
-  }
   return prior;
 };
 

@@ -94,6 +94,9 @@ constexpr float MATCH_COLUMN_2_X = MATCH_COLUMN_1_X + PLAYER_DD_WIDTH;
 constexpr float MATCH_START_Y = NAVBAR_HEIGHT + UI_SPACING;
 constexpr float MATCH_START_HEIGHT = 100;
 constexpr float MATCH_FIELD_Y = MATCH_START_Y + MATCH_START_HEIGHT + UI_SPACING;
+// As in the main menu, the rules toggle sits under the closed dropdowns and is
+// hidden while either list is open.
+constexpr float MATCH_RULES_Y = PLAYER_DD_Y + PLAYER_DD_HEIGHT + UI_SPACING;
 constexpr float MATCH_OUTPUT_X =
     MATCH_COLUMN_2_X + PLAYER_DD_WIDTH + UI_SPACING;
 constexpr float MATCH_OUTPUT_Y = MATCH_START_Y;

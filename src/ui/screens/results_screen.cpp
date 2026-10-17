@@ -52,7 +52,11 @@ EngineMatch::EngineMatch(Game &game, MatchController &match_controller,
           assets.pool_button_background, assets.pool_button_hover,
           assets.pool_button_armed, ENGINE_NAMES[1],
           std::vector<ButtonContent>(ENGINE_NAMES.begin(),
-                                     ENGINE_NAMES.end())) {
+                                     ENGINE_NAMES.end())),
+      rules_({MATCH_COLUMN_1_X, MATCH_RULES_Y, 2 * PLAYER_DD_WIDTH,
+              SETTING_HEIGHT},
+             assets.pool_button_background, assets.pool_button_hover,
+             assets.pool_button_armed, "") {
 
   const float column_x[2] = {MATCH_COLUMN_1_X, MATCH_COLUMN_2_X};
   const int n = ENGINE_SETTINGS.size();
@@ -95,11 +99,18 @@ Action EngineMatch::update(const Input &in) {
       }
     }
 
+    // Before the dropdowns: a click that picks an entry of an open list must
+    // not also reach the toggle under it.
+    if (!player_1_dd_.open() && !player_2_dd_.open() && rules_.update(in))
+      squares_ = !squares_;
+
     if (std::optional<int> idx = player_1_dd_.update(in))
       engines_[0] = *idx;
     if (std::optional<int> idx = player_2_dd_.update(in))
       engines_[1] = *idx;
   }
+
+  rules_.set_content(squares_ ? "2X2 SQUARES ON" : "2X2 SQUARES OFF");
 
   int max_scroll = std::max(0, (int)log_.size() - VISIBLE_LINES);
   scroll_ = std::clamp(scroll_ + 3 * (int)GetMouseWheelMove(), 0, max_scroll);
@@ -122,6 +133,7 @@ Action EngineMatch::update(const Input &in) {
 void EngineMatch::load_config() {
   const Seat *seats[2] = {&match_config_.player_1, &match_config_.player_2};
   Dropdown *dropdowns[2] = {&player_1_dd_, &player_2_dd_};
+  squares_ = match_config_.squares;
   for (int p = 0; p < 2; ++p) {
     settings_[p] = match_config_.settings[p];
     // Toggles show settings_ on their next update; fields keep their own copy.
@@ -170,6 +182,7 @@ Command EngineMatch::start_game() {
     seeds_[seat] = rng_();
     match_config_.seeds[seat] = seeds_[seat];
   }
+  match_config_.squares = squares_;
   return cmd::NewGame{};
 }
 
@@ -243,6 +256,8 @@ void EngineMatch::draw() {
   for (const auto &column : settings_ui_)
     for (const auto &widget : column)
       std::visit([](const auto &w) { w.draw(); }, widget);
+  if (!player_1_dd_.open() && !player_2_dd_.open())
+    rules_.draw();
   // Last, so an open list covers the widgets below it.
   player_1_dd_.draw();
   player_2_dd_.draw();
