@@ -1,5 +1,6 @@
 #include "search.hpp"
 #include "canonical.hpp"
+#include "ordering.hpp"
 #include "types.hpp"
 #include "wincheck.hpp"
 #include <algorithm>
@@ -218,34 +219,68 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   Move best_move = EMPTY_MOVE;
   bool any_safe = false; // some placement left a give that does not lose
 
-  // Cells and gives in index order, except that the TT move comes first: its
-  // cell before the other cells, and its give first on that cell. A hash
-  // collision can hand over a move from another position, but pop_first only
-  // takes it if the cell is empty and the give is available and safe, so it
-  // needs no separate check. Unsafe gives are never searched: they would
-  // break the invariant that the piece in hand cannot win.
+  // Gives `piece` once the placement on `cell` is made, and searches it. True
+  // when it cuts this node off.
+  auto search_give = [&](Cell cell, Piece piece) {
+    pos.give_piece(piece);
+    Score score = -negamax(pos, depth - 1, -beta, -alpha);
+    pos.undo_give_piece();
+    if (score > alpha) {
+      alpha = score;
+      best_move = {cell, piece};
+    }
+    return alpha >= beta;
+  };
+  auto cutoff = [&] {
+    if (!stop_)
+      tt_.store(key, alpha, depth, to_tt(best_move), Bound::Lower);
+    history_[pos.in_hand()][best_move.cell] +=
+        (16 - move_number) * (16 - move_number);
+    give_history_[best_move.give] += (16 - move_number) * (16 - move_number);
+    return alpha;
+  };
+
+  // Stage 1: the TT move, before anything else. A hash collision can hand over
+  // a move from another position, so it is checked first: the cell must be
+  // empty and the piece available. The give is searched only if it is also
+  // safe after the placement: an unsafe give would break the invariant that
+  // the piece in hand cannot win.
+  bool tt_move_legal =
+      entry_move.cell >= 0 && pos.empty_cells() >> entry_move.cell & 1 &&
+      entry_move.give >= 0 && pos.available() >> entry_move.give & 1;
+
+  if (tt_move_legal) {
+
+    pos.place_piece(entry_move.cell);
+    Bitboard safe = pos.available() & ~winning_pieces(pos);
+    if (safe >> entry_move.give & 1) {
+      any_safe = true;
+      if (search_give(entry_move.cell, entry_move.give)) {
+        pos.undo_place_piece();
+        return cutoff();
+      }
+    }
+    pos.undo_place_piece();
+  }
+
+  // Stage 2: every other move, cells and gives ordered by history. The TT
+  // give on the TT cell was already searched in stage 1, so it is skipped.
   Bitboard empty = pos.empty_cells();
   while (empty) {
-    Cell cell = pop_first(empty, entry_move.cell);
+    Cell cell = best_cell(empty, history_, pos.in_hand());
     pos.place_piece(cell);
-    Bitboard avail = pos.available() & ~winning_pieces(pos);
+    Bitboard safe_gives = ~winning_pieces(pos);
+    Bitboard avail = tt_move_legal && entry_move.cell == cell
+                         ? pos.available() & ~(Bitboard{1} << entry_move.give)
+                         : pos.available();
+    avail &= safe_gives;
     if (avail)
       any_safe = true;
     while (avail) {
-      Piece give =
-          pop_first(avail, cell == entry_move.cell ? entry_move.give : -1);
-      pos.give_piece(give);
-      Score score = -negamax(pos, depth - 1, -beta, -alpha);
-      pos.undo_give_piece();
-      if (score > alpha) {
-        alpha = score;
-        best_move = {cell, give};
-      }
-      if (alpha >= beta) {
+      Piece give = best_give(avail, give_history_);
+      if (search_give(cell, give)) {
         pos.undo_place_piece();
-        if (!stop_)
-          tt_.store(key, alpha, depth, to_tt(best_move), Bound::Lower);
-        return alpha;
+        return cutoff();
       }
     }
     pos.undo_place_piece();
