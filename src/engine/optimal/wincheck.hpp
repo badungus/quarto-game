@@ -17,4 +17,11 @@ bool move_wins(const Position &p, Cell cell);
 // sharing a property is enough.
 Bitboard winning_pieces(Position &pos);
 
+// A score per cell for placing the piece in hand there, lowest first
+// (indjev99's prior): +2 per property on which the cell blocks a line of three
+// with the value the hand lacks, -1 per new empty cell that would complete a
+// line of three with the hand's value. Negated at 14 pieces, where only one
+// placement follows. Cells that are not empty score 0.
+std::array<int, 16> cell_priors(const Position &pos);
+
 } // namespace quarto

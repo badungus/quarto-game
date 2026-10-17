@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <bit>
 #include <cstddef>
 
 #include "types.hpp"
@@ -82,5 +83,25 @@ constexpr std::array<Bitboard, 4> pieces_with_prop() {
 };
 
 inline constexpr std::array<Bitboard, 4> HAS_PROP = pieces_with_prop();
+
+// COMPLETES[m]: every cell that is the only cell of some line outside the
+// cells m, so it completes a line whose other three cells are in m. One table
+// for the lines, one for the lines and 2x2 squares. Built at startup: too much
+// work for a constexpr.
+template <std::size_t N>
+std::array<Bitboard, 1 << 16>
+make_completes(const std::array<Bitboard, N> &lines) {
+  std::array<Bitboard, 1 << 16> t{};
+  for (unsigned m = 0; m < (1u << 16); ++m)
+    for (Bitboard line : lines) {
+      Bitboard missing = Bitboard(line & ~m);
+      if (std::popcount(missing) == 1)
+        t[m] |= missing;
+    }
+  return t;
+}
+const std::array<Bitboard, 1 << 16> LINE_COMPLETES = make_completes(LINES);
+const std::array<Bitboard, 1 << 16> SQUARE_COMPLETES =
+    make_completes(WIN_CONDITIONS);
 
 } // namespace quarto

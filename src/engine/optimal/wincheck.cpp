@@ -76,4 +76,33 @@ Bitboard winning_pieces(Position &pos) {
   return wins;
 }
 
+std::array<int, 16> cell_priors(const Position &pos) {
+  const auto &completes = squares_win ? SQUARE_COMPLETES : LINE_COMPLETES;
+  const Bitboard occ = pos.occupied();
+  const Bitboard empty = pos.empty_cells();
+  std::array<int, 16> prior{};
+  std::array<Bitboard, 4> same; // cells whose piece shares the hand's value
+  for (int i = 0; i < 4; ++i) {
+    Bitboard ones = pos.props()[i];
+    Bitboard zeros = Bitboard(occ & ~ones);
+    bool hand_has = pos.in_hand() >> i & 1;
+    same[i] = hand_has ? ones : zeros;
+    for (Bitboard b = Bitboard(completes[hand_has ? zeros : ones] & empty); b;
+         b &= b - 1)
+      prior[std::countr_zero(b)] += 2;
+  }
+  // The hand cannot win (it was a safe give), so every completing cell found
+  // with c added is new.
+  for (Bitboard e = empty; e; e &= e - 1) {
+    const int c = std::countr_zero(e);
+    for (Bitboard s : same)
+      prior[c] -= std::popcount(
+          Bitboard(completes[s | Bitboard{1} << c] & empty));
+  }
+  if (std::popcount(occ) == 14)
+    for (int &p : prior)
+      p = -p;
+  return prior;
+}
+
 } // namespace quarto

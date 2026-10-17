@@ -37,6 +37,17 @@ int pop_first(Bitboard &set, int first) {
   set &= ~(Bitboard{1} << i);
   return i;
 }
+
+// The empty cell with the lowest prior, lowest index on ties.
+int lowest_prior(Bitboard set, const std::array<int, 16> &prior) {
+  int best = std::countr_zero(set);
+  for (Bitboard b = Bitboard(set & (set - 1)); b; b &= b - 1) {
+    const int i = std::countr_zero(b);
+    if (prior[i] < prior[best])
+      best = i;
+  }
+  return best;
+}
 } // namespace
 
 // The jobs are the positions this many turns in (= pieces placed), and the
@@ -467,16 +478,28 @@ Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
   Move best_move = EMPTY_MOVE;
   bool any_safe = false; // some placement left a give that does not lose
 
-  // Cells and pieces in index order, except that the TT move comes first:
-  // its cell before the other cells, and its give first on that cell. It may
-  // come from an equivalent position or, very rarely, a hash collision, but
-  // pop_first only takes it if the cell is empty and the piece is available
-  // and safe, so it needs no separate check. Unsafe gives are never
-  // searched: they would break the invariant that the piece in hand cannot
-  // win.
+  // The TT move comes first: its cell before the other cells, and its give
+  // first on that cell. It may come from an equivalent position or, very
+  // rarely, a hash collision, so its cell is only taken if empty, and
+  // pop_first only takes its give if available and safe. The other cells
+  // follow by cell_priors, computed only once the TT cell has not cut; the
+  // pieces in index order. Unsafe gives are never searched: they would break
+  // the invariant that the piece in hand cannot win.
   Bitboard empty = pos.empty_cells();
+  std::array<int, 16> prior;
+  bool have_prior = false;
   while (empty) {
-    Cell cell = Cell(pop_first(empty, entry_move.cell));
+    Cell cell;
+    if (entry_move.cell >= 0 && empty >> entry_move.cell & 1) {
+      cell = entry_move.cell;
+    } else {
+      if (!have_prior) {
+        prior = cell_priors(pos);
+        have_prior = true;
+      }
+      cell = Cell(lowest_prior(empty, prior));
+    }
+    empty &= Bitboard(~(Bitboard{1} << cell));
     pos.place_piece(cell);
     Bitboard avail = pos.available() & ~winning_pieces(pos);
     if (avail)

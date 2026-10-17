@@ -106,7 +106,6 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth, Move first) {
       return {{0, {-1, -1}}}; // search stopped
     return best_moves;
   }
-
   while (empty) {
     Cell cell = pop_first(empty, first.cell);
     pos.place_piece(cell);
@@ -266,8 +265,9 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   // Stage 2: every other move, cells and gives ordered by history. The TT
   // give on the TT cell was already searched in stage 1, so it is skipped.
   Bitboard empty = pos.empty_cells();
+  std::array<Score, 16> prior = compute_prior(pos);
   while (empty) {
-    Cell cell = best_cell(empty, history_, pos.in_hand());
+    Cell cell = best_cell(empty, prior);
     pos.place_piece(cell);
     Bitboard safe_gives = ~winning_pieces(pos);
     Bitboard avail = tt_move_legal && entry_move.cell == cell
