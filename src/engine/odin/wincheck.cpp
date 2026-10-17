@@ -19,7 +19,8 @@ bool line_is_win(Bitboard line, Bitboard occ,
 }
 
 bool move_wins(Cell cell, Bitboard occ, const std::array<Bitboard, 4> &prop) {
-  for (Bitboard line : CELL_LINES[cell]) {
+  const auto &cell_lines = squares_win ? CELL_SQUARE_LINES : CELL_LINES;
+  for (Bitboard line : cell_lines[cell]) {
     if (line_is_win(line, occ, prop))
       return true;
   }
@@ -66,20 +67,42 @@ Score eval(Position &pos) {
   return Score(-(win_score(pos) - 1));
 }
 
-Bitboard winning_pieces(Position &pos) {
-  Bitboard occ = pos.occupied();
-  Bitboard wins = 0;
-  for (Bitboard line : LINES) {
-    Bitboard filled = line & occ;
-    if (std::popcount(filled) != 3)
-      continue;
-    for (int i = 0; i < 4; ++i) {
-      Bitboard with = pos.props()[i] & filled;
-      if (with == filled)
-        wins |= HAS_PROP[i];
-      else if (with == 0)
-        wins |= ~HAS_PROP[i];
+namespace {
+// COMPLETES[m]: every cell that is the only cell of some line outside the
+// cells m, so it completes a line whose other three cells are in m. One table
+// for the lines, one for the lines and 2x2 squares. Built at startup: too much
+// work for a constexpr.
+template <std::size_t N>
+std::array<Bitboard, 1 << 16>
+make_completes(const std::array<Bitboard, N> &lines) {
+  std::array<Bitboard, 1 << 16> t{};
+  for (unsigned m = 0; m < (1u << 16); ++m)
+    for (Bitboard line : lines) {
+      Bitboard missing = Bitboard(line & ~m);
+      if (std::popcount(missing) == 1)
+        t[m] |= missing;
     }
+  return t;
+}
+const std::array<Bitboard, 1 << 16> LINE_COMPLETES = make_completes(LINES);
+const std::array<Bitboard, 1 << 16> SQUARE_COMPLETES =
+    make_completes(WIN_CONDITIONS);
+} // namespace
+
+Bitboard winning_pieces(Position &pos) {
+  const auto &completes = squares_win ? SQUARE_COMPLETES : LINE_COMPLETES;
+  Bitboard empty = pos.empty_cells();
+  Bitboard wins = 0;
+  // A line of three pieces sharing a property value, with its fourth cell
+  // empty, is won by any piece with that value. The cells holding each value
+  // are looked up for such a fourth cell.
+  for (int i = 0; i < 4; ++i) {
+    Bitboard ones = pos.props()[i];
+    Bitboard zeros = Bitboard(pos.occupied() & ~ones);
+    if (completes[ones] & empty)
+      wins |= HAS_PROP[i];
+    if (completes[zeros] & empty)
+      wins |= ~HAS_PROP[i];
   }
   return wins;
 }

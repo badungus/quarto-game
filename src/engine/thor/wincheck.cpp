@@ -19,7 +19,8 @@ bool line_is_win(Bitboard line, Bitboard occ,
 }
 
 bool move_wins(Cell cell, Bitboard occ, const std::array<Bitboard, 4> &prop) {
-  for (Bitboard line : CELL_LINES[cell]) {
+  const auto &cell_lines = squares_win ? CELL_SQUARE_LINES : CELL_LINES;
+  for (Bitboard line : cell_lines[cell]) {
     if (line_is_win(line, occ, prop))
       return true;
   }

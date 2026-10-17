@@ -71,7 +71,9 @@ speak UQI on stdin/stdout.
 | **Optimal** | Perfect play. Plays from an opening book (`src/engine/optimal/book.bin`) while the position is in it, picking at random among the best moves, and solves the position to the end of the game after that. Ignores depth and move-time limits. The book shows the start position is a draw. |
 
 Baldur, Thor and Odin accept `depth`, `movetime` and `infinite` limits and
-report a forced win or loss as `mate N` once they find one.
+report a forced win or loss as `mate N` once they find one. With `squares` on
+the `go` line they also count 2x2 squares of four pieces sharing a property as
+a win, for that search only; without it they play normal Quarto.
 
 ### Optimal on the command line
 
@@ -187,7 +189,7 @@ line-based protocol modelled on chess's UCI.
 | `uqi` | Handshake; the engine replies `uqiok`. |
 | `isready` | The engine replies `readyok`. |
 | `seed N` | Fixes the engine's tie-break random generator until the next `seed`. |
-| `go [depth N] [movetime MS] [infinite] [position POS]` | Sets the limits and position and starts a search. |
+| `go [depth N] [movetime MS] [infinite] [squares] [position POS]` | Sets the limits, the rules and the position and starts a search. `squares`: 2x2 squares win too (Baldur, Thor, Odin). Limits, rules and position reset after each `go`. |
 | `stop` | Stops the current search; the engine still sends `bestmove`. |
 | `quit` | Stops the search and exits. |
 

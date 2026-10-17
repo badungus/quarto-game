@@ -91,6 +91,11 @@ void uqi_loop(Engine &engine) {
       engine.set_infinite(true);
     }
 
+    // "squares": 2x2 squares win too, for this search only.
+    if (std::find(tokens.begin(), tokens.end(), "squares") != tokens.end()) {
+      engine.set_squares(true);
+    }
+
     size_t pos_idx =
         std::find(tokens.begin(), tokens.end(), "position") - tokens.begin();
     if (pos_idx + 1 <

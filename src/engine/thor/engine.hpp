@@ -14,6 +14,7 @@ namespace quarto {
 
 const int DEFAULT_MOVETIME = INT_MAX;
 const bool DEFAULT_INFINITE = false;
+const bool DEFAULT_SQUARES = false; // normal play: only lines win
 const int DEFAULT_DEPTH = 16;
 const std::tuple<Bitboard, std::array<Bitboard, 4>, Piece> DEFAULT_POSITION = {
     0xffff, {0, 0, 0, 0}, -1};
@@ -36,6 +37,7 @@ private:
   int depth_ = DEFAULT_DEPTH;
   int movetime_ = DEFAULT_MOVETIME;
   bool infinite_ = DEFAULT_INFINITE;
+  bool squares_ = DEFAULT_SQUARES;
   // Applied in go(), once the previous search thread has finished, so the
   // generator is never reseeded while the search thread uses it.
   std::optional<std::uint64_t> pending_seed_;
@@ -54,6 +56,7 @@ public:
   void set_depth(int depth) { depth_ = depth; }
   void set_movetime(int movetime) { movetime_ = movetime; }
   void set_infinite(bool infinite) { infinite_ = infinite; }
+  void set_squares(bool squares) { squares_ = squares; }
   void set_seed(std::uint64_t seed) { pending_seed_ = seed; }
 };
 } // namespace quarto

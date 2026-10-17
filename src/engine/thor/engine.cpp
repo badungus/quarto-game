@@ -1,6 +1,7 @@
 #include "engine.hpp"
 #include "position.hpp"
 #include "search.hpp"
+#include "tables.hpp"
 #include "types.hpp"
 #include <bit>
 #include <functional>
@@ -13,6 +14,8 @@ void Engine::go(SearchCallbacks callback) {
   if (search_thread_.joinable())
     search_thread_.join();
   search_.set_stop(false);
+  // The previous search has finished, so the rules can change.
+  squares_win = squares_;
   if (pending_seed_) {
     search_.set_seed(*pending_seed_);
     pending_seed_.reset();
@@ -38,6 +41,7 @@ void Engine::go(SearchCallbacks callback) {
   depth_ = DEFAULT_DEPTH;
   movetime_ = DEFAULT_MOVETIME;
   infinite_ = DEFAULT_INFINITE;
+  squares_ = DEFAULT_SQUARES;
 };
 
 void Engine::stop() { search_.set_stop(true); };
