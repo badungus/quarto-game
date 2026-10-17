@@ -2,7 +2,6 @@
 add_library(odin_core STATIC
     canonical.cpp
     engine.cpp
-    ordering.cpp
     position.cpp
     search.cpp
     tt.cpp
