@@ -27,7 +27,10 @@ MainMenu::MainMenu(Game &game, MatchController &match_controller,
           {PLAYER_2_DD_X, MENU_DD_Y, PLAYER_DD_WIDTH, MENU_DD_HEIGHT},
           assets.pool_button_background, assets.pool_button_hover,
           assets.pool_button_armed, "PLAYER TWO",
-          std::vector<ButtonContent>(PLAYERS.begin(), PLAYERS.end())) {
+          std::vector<ButtonContent>(PLAYERS.begin(), PLAYERS.end())),
+      rules_({START_X, MENU_RULES_Y, START_WIDTH, SETTING_HEIGHT},
+             assets.pool_button_background, assets.pool_button_hover,
+             assets.pool_button_armed, "") {
   const float column_x[2] = {PLAYER_1_DD_X, PLAYER_2_DD_X};
   const int n = ENGINE_SETTINGS.size();
   for (int p = 0; p < 2; ++p) {
@@ -66,6 +69,13 @@ Action MainMenu::update(const Input &in) {
     }
   }
 
+  // Before the dropdowns: a click that picks an entry of an open list must
+  // not also reach the toggle under it.
+  if (!player_1_dd_.open() && !player_2_dd_.open() && rules_.update(in))
+    match_config_.squares = !match_config_.squares;
+  rules_.set_content(match_config_.squares ? "2X2 SQUARES ON"
+                                           : "2X2 SQUARES OFF");
+
   std::optional<int> player_1_idx = player_1_dd_.update(in);
   std::optional<int> player_2_idx = player_2_dd_.update(in);
 
@@ -95,6 +105,8 @@ Action MainMenu::update(const Input &in) {
 void MainMenu::draw_menu_buttons() {
   start_.draw();
   engine_match_.draw();
+  if (!player_1_dd_.open() && !player_2_dd_.open())
+    rules_.draw();
   player_1_dd_.draw();
   player_2_dd_.draw();
   for (const auto &column : settings_ui_)

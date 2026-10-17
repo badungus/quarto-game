@@ -26,7 +26,8 @@ private:
   MatchConfig &match_config_;
   std::unique_ptr<Player> make_player(const Seat &seat, const Game &game,
                                       const std::string &go_args,
-                                      std::optional<std::uint64_t> seed);
+                                      std::optional<std::uint64_t> seed,
+                                      bool squares);
   std::unique_ptr<Player> player_1_;
   std::unique_ptr<Player> player_2_;
   EngineInfoHistory engine_info_history_;

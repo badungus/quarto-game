@@ -15,15 +15,25 @@
 #include <string>
 #include <vector>
 
+namespace {
+// The engine sits next to the GUI executable, wherever that was launched
+// from. Passed as an argument list so a path with spaces stays intact.
+std::vector<std::string> engine_command(const std::string &executable,
+                                        const std::vector<std::string> &args) {
+  std::vector<std::string> command{std::string(GetApplicationDirectory()) +
+                                   executable};
+  command.insert(command.end(), args.begin(), args.end());
+  return command;
+}
+} // namespace
+
 EnginePlayer::EnginePlayer(const Game &game, std::string name,
-                           std::string executable, std::string go_args,
+                           std::string executable,
+                           std::vector<std::string> args, std::string go_args,
                            std::optional<std::uint64_t> seed)
     : game_(game), name_(name), go_args_(go_args), buffer_(""),
-      // The engine sits next to the GUI executable, wherever that was launched
-      // from. Passed as an argument list so a path with spaces stays intact.
       engine_(
-          std::vector<std::string>{std::string(GetApplicationDirectory()) +
-                                   executable},
+          engine_command(executable, args),
           "",
           [&](const char *bytes, size_t n) {
             buffer_.append(bytes, n);

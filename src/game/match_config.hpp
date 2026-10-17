@@ -9,13 +9,16 @@
 struct EngineSeat {
   std::string name;
   std::string executable;
+  // Squares mode is a startup flag (--squares) for this engine, not a go
+  // option: optimal picks its opening book when it starts.
+  bool squares_flag = false;
 };
 
 inline constexpr std::array ENGINES{
     EngineSeat{"Thor", "thor"},
     EngineSeat{"Odin", "odin"},
     EngineSeat{"Baldur", "baldur"},
-    EngineSeat{"Optimal", "optimal"},
+    EngineSeat{"Optimal", "optimal", true},
 };
 constexpr auto make_engine_names() {
   std::array<std::string, ENGINES.size()> result{};
@@ -81,9 +84,15 @@ struct MatchConfig {
   // Sent to the engines as "seed N" before the game; unset leaves the engine
   // with its own random seed.
   std::array<std::optional<std::uint64_t>, 2> seeds{};
+  // 2x2 squares of four pieces sharing a property win too, for both players.
+  bool squares = false;
 
   std::string go_args(int player) const {
     std::string args;
+    const auto *engine = std::get_if<EngineSeat>(player == 0 ? &player_1
+                                                             : &player_2);
+    if (squares && engine && !engine->squares_flag)
+      args += " squares";
     for (size_t i = 0; i < ENGINE_SETTINGS.size(); ++i) {
       const std::string &value = settings[player][i];
       if (value.empty())

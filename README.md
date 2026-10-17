@@ -32,6 +32,10 @@ plain alpha-beta search to a perfect-play solver with an opening book.
   engine. Each seat can be the human player or any of the four engines.
 - **Per-player engine settings** in the main menu: search depth, move time and
   infinite search.
+- **Two rule sets**: normal Quarto, or 2x2 squares mode, where four pieces
+  sharing a property in a 2x2 square also win. Switched with the
+  `2X2 SQUARES` button in the main menu; it applies to games and engine
+  matches started afterwards.
 - **Game controls**: undo, redo, restart, pause / resume and stop search.
 - **Engine insight**: an evaluation bar for each player and a scrollable view of
   the engine's live search output, grouped by move.

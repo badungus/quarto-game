@@ -135,23 +135,29 @@ void MatchController::redo() {
 
 void MatchController::start(const MatchConfig &config) {
   result_.reset();
-  player_1_ =
-      make_player(config.player_1, game_, config.go_args(0), config.seeds[0]);
-  player_2_ =
-      make_player(config.player_2, game_, config.go_args(1), config.seeds[1]);
+  // Set once per game: the rules never change while it runs.
+  game_.set_squares(config.squares);
+  player_1_ = make_player(config.player_1, game_, config.go_args(0),
+                          config.seeds[0], config.squares);
+  player_2_ = make_player(config.player_2, game_, config.go_args(1),
+                          config.seeds[1], config.squares);
 }
 
 std::unique_ptr<Player>
 MatchController::make_player(const Seat &seat, const Game &game,
                              const std::string &go_args,
-                             std::optional<std::uint64_t> seed) {
+                             std::optional<std::uint64_t> seed, bool squares) {
   return std::visit(overloaded{
                         [this](const HumanSeat &) -> std::unique_ptr<Player> {
                           return std::make_unique<HumanPlayer>(command_);
                         },
                         [&](const EngineSeat &s) -> std::unique_ptr<Player> {
+                          std::vector<std::string> args;
+                          if (squares && s.squares_flag)
+                            args.push_back("--squares");
                           return std::make_unique<EnginePlayer>(
-                              game, s.executable, s.executable, go_args, seed);
+                              game, s.executable, s.executable, args, go_args,
+                              seed);
                         },
                     },
                     seat);

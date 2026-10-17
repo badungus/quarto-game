@@ -82,6 +82,9 @@ constexpr float MENU_DD_HEIGHT = SETTING_HEIGHT;
 constexpr float MENU_DD_Y =
     MENU_MATCH_Y - UI_SPACING - PLAYERS.size() * MENU_DD_HEIGHT;
 constexpr float MENU_SETTING_BOTTOM_Y = MENU_DD_Y - UI_SPACING;
+// The rules toggle sits under the closed dropdowns, in the space their open
+// lists cover, so it is hidden while either list is open.
+constexpr float MENU_RULES_Y = MENU_DD_Y + MENU_DD_HEIGHT + UI_SPACING;
 
 // Engine match screen: controls in two columns on the left, the match output
 // in a panel filling the rest. Settings and dropdowns keep the main menu's

@@ -44,8 +44,10 @@ private:
   std::string format_position();
 
 public:
+  // args: command-line arguments for the engine, e.g. {"--squares"}.
   EnginePlayer(const Game &game, std::string name, std::string executable,
-               std::string go_args, std::optional<std::uint64_t> seed);
+               std::vector<std::string> args, std::string go_args,
+               std::optional<std::uint64_t> seed);
   ~EnginePlayer() { engine_.write("quit\n"); };
   std::optional<Cell> poll_cell() override;
   std::optional<Piece> poll_piece() override;

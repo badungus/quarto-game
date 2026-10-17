@@ -23,6 +23,8 @@ public:
            ButtonContent content, std::vector<ButtonContent> dd_content);
   void draw();
   std::optional<int> update(const Input &in);
+  // True while the list is open, covering the rows below the dropdown.
+  bool open() const { return active_; }
   // Shows content on the closed dropdown, as if it had been picked.
   void set_content(ButtonContent content) {
     content_ = content;

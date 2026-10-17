@@ -95,7 +95,8 @@ bool Game::check_draw() {
 }
 
 bool Game::check_win() {
-  std::array<std::array<int, 4>, 10> lines = {{{0, 1, 2, 3},
+  // The 10 lines, then the 9 2x2 squares, which only win in squares mode.
+  std::array<std::array<int, 4>, 19> lines = {{{0, 1, 2, 3},
                                                {4, 5, 6, 7},
                                                {8, 9, 10, 11},
                                                {12, 13, 14, 15},
@@ -104,9 +105,20 @@ bool Game::check_win() {
                                                {2, 6, 10, 14},
                                                {3, 7, 11, 15},
                                                {0, 5, 10, 15},
-                                               {3, 6, 9, 12}}};
+                                               {3, 6, 9, 12},
+                                               {0, 1, 4, 5},
+                                               {1, 2, 5, 6},
+                                               {2, 3, 6, 7},
+                                               {4, 5, 8, 9},
+                                               {5, 6, 9, 10},
+                                               {6, 7, 10, 11},
+                                               {8, 9, 12, 13},
+                                               {9, 10, 13, 14},
+                                               {10, 11, 14, 15}}};
+  const int count = squares_ ? 19 : 10;
 
-  for (const auto &line : lines) {
+  for (int k = 0; k < count; ++k) {
+    const auto &line = lines[k];
     if (board_[line[0]] < 0 || board_[line[1]] < 0 || board_[line[2]] < 0 ||
         board_[line[3]] < 0)
       continue;

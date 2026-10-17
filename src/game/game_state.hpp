@@ -16,6 +16,7 @@ private:
   bool win_ = false;
   bool draw_ = false;
   bool piece_placed_ = true;
+  bool squares_ = false; // 2x2 squares win too
 
   bool check_win();
   bool check_draw();
@@ -30,6 +31,7 @@ public:
   void redo_piece();
   void redo_hand();
   void set_current_player(PlayerID current) { current_player_ = current; }
+  void set_squares(bool squares) { squares_ = squares; }
   void restart();
 
   const bool win() { return win_; }
@@ -40,5 +42,6 @@ public:
   const Board &board() const { return board_; }
   const PlayerID &current_player() const { return current_player_; }
   const bool piece_placed() const { return piece_placed_; }
+  const bool squares() const { return squares_; }
   const int top() const { return top_; }
 };
