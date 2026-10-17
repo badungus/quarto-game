@@ -68,7 +68,7 @@ speak UQI on stdin/stdout.
 | **Baldur**  | Baseline: iterative-deepening negamax with alpha-beta pruning on a bitboard position, root moves searched with a full window. |
 | **Thor**    | Baldur plus a check for an immediate win before any subtree is searched, a narrowed root window that cuts off worse moves early, and win scores based on the number of pieces on the board. |
 | **Odin**    | Thor plus a transposition table (exact keys, packed 16-byte entries, generations), symmetry reduction (32 board symmetries × 384 piece relabelings) for shallow positions, and history-based move ordering. |
-| **Optimal** | Perfect play. Plays from an opening book (`src/engine/optimal/book.txt`) while the position is in it, and solves the position to the end of the game after that. Ignores depth and move-time limits. The book shows the start position is a draw. |
+| **Optimal** | Perfect play. Plays from an opening book (`src/engine/optimal/book.bin`) while the position is in it, picking at random among the best moves, and solves the position to the end of the game after that. Ignores depth and move-time limits. The book shows the start position is a draw. |
 
 Baldur, Thor and Odin accept `depth`, `movetime` and `infinite` limits and
 report a forced win or loss as `mate N` once they find one.
@@ -78,17 +78,23 @@ report a forced win or loss as `mate N` once they find one.
 Besides running as a UQI engine, `optimal` can solve positions directly:
 
 ```sh
-optimal --solve POSITION [--tt MB]          # prove win / draw / loss for one position
-optimal --full [--threads N] [--tt MB]      # solve the whole game and write the book
+optimal --solve POSITION [--tt MB] [--no-distance]       # prove win / draw / loss for one position
+optimal --full [--threads N] [--tt MB] [--no-distance]   # solve the whole game and write the book
 ```
 
 - `--solve` runs on one thread without the book and prints the result for the
-  side to move, a move that achieves it, the node count and the time.
+  side to move, how soon (`mate`), a move that achieves it, the node count and
+  the time.
 - `--full` solves the empty board on `N` threads (default: one per hardware
-  thread) and writes every position of the first few turns to `book.txt`. It
-  takes hours; finished jobs are saved as they complete, so an interrupted run
-  picks up where it stopped.
+  thread) and writes every position of the first six turns, with all its best
+  moves, to `book.bin`. It takes hours; finished jobs are saved to
+  `book.bin.jobs` as they complete, so an interrupted run picks up where it
+  stopped.
 - `--tt` sets the transposition table size in MB (default 8192).
+- `--no-distance` proves only win, draw or loss, not how soon. It skips the
+  second search that every win and loss needs for its distance, so it is
+  faster, but there is no `mate`, and a book written with it has no distances.
+  Resuming `--full` without it solves the jobs saved without a distance again.
 
 ## Getting started
 
@@ -277,7 +283,7 @@ quarto-game/
     │   ├── baldur/
     │   ├── thor/
     │   ├── odin/
-    │   └── optimal/          solver + book.txt opening book
+    │   └── optimal/          solver + book.bin opening book
     ├── game/                 game state and rules, independent of the UI
     ├── match/                match configuration, turn flow, commands
     ├── players/              human and engine players

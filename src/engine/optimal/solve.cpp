@@ -7,10 +7,12 @@
 #include <atomic>
 #include <bit>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
+#include <limits>
 #include <map>
 #include <mutex>
-#include <set>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -29,65 +31,144 @@ Move any_move(const Position &pos) {
 }
 } // namespace
 
-// The book holds every position up to this many turns in (= pieces placed);
-// the jobs are the positions at exactly this ply. 4 because the engine solves
-// what lies beyond live, and that must stay under 3 s: on one thread with its
-// 2048 MB TT, 100 random positions with 5 pieces placed took at most 1.5 s
-// (median 0.34 s), but with 4 pieces placed the median was 4.6 s.
+// The jobs are the positions this many turns in (= pieces placed), and the
+// book holds every position above them. 6 because the engine solves what lies
+// beyond the book live, and that must be quick: in a sample of 400, positions
+// with 6 pieces placed took a median 0.04 s (max 0.2 s), against 0.45 s with
+// 5 and 4.8 s with 4. That makes 26.0 million jobs and a book of 1.86 million
+// positions.
 constexpr int SEARCH_START_PLY = 4;
+
+Position canonical_position(const CanonKey &key) {
+  Position pos;
+  pos.load(key.second,
+           {Bitboard(key.first), Bitboard(key.first >> 16),
+            Bitboard(key.first >> 32), Bitboard(key.first >> 48)},
+           0);
+  return pos;
+}
 
 Book read_book(const std::string &path) {
   Book book;
-  if (std::FILE *in = std::fopen(path.c_str(), "r")) {
+  std::FILE *in = std::fopen(path.c_str(), "rb");
+  if (!in)
+    return book;
+  char magic[sizeof BOOK_MAGIC];
+  if (std::fread(magic, 1, sizeof magic, in) != sizeof magic ||
+      !std::equal(magic, magic + sizeof magic, BOOK_MAGIC)) {
+    // The older text book.
+    std::rewind(in);
     char line[128];
     while (std::fgets(line, sizeof line, in)) {
       unsigned long long cols;
       unsigned occ;
       int value, cell, give;
       if (std::sscanf(line, "%llx %x %d %d %d", &cols, &occ, &value, &cell,
-                      &give) == 5)
-        book[{cols, Bitboard(occ)}] = {Score(value),
-                                       {Cell(cell), Piece(give)}};
+                      &give) == 5 &&
+          cell >= 0 && cell < 16 && give >= 0 && give < 16) {
+        BookEntry e{Score(value), {}};
+        e.gives[cell] = Bitboard(1u << give);
+        book[{cols, Bitboard(occ)}] = e;
+      }
     }
-    std::fclose(in);
+  } else {
+    std::uint64_t cols;
+    Bitboard occ, cells;
+    Score value;
+    while (std::fread(&cols, sizeof cols, 1, in) == 1 &&
+           std::fread(&occ, sizeof occ, 1, in) == 1 &&
+           std::fread(&value, sizeof value, 1, in) == 1 &&
+           std::fread(&cells, sizeof cells, 1, in) == 1) {
+      BookEntry e{value, {}};
+      for (; cells; cells &= cells - 1)
+        if (std::fread(&e.gives[std::countr_zero(cells)], sizeof(Bitboard), 1,
+                       in) != 1)
+          break; // a cut-off last record: dropped
+      if (!cells)
+        book[{cols, occ}] = e;
+    }
   }
+  std::fclose(in);
   return book;
 }
 
-SolveResult Solver::full_solve(unsigned threads,
-                               const std::string &book_path) {
-  const std::vector<Position> jobs = create_positions_();
-  std::vector<Canon> canons;
-  for (const Position &job : jobs)
-    canons.push_back(canonicalize(job));
-
-  // Jobs solved by an earlier, interrupted run. A win or loss with no
-  // distance comes from a book written before solves had them.
-  Book book = read_book(book_path);
-  std::vector<std::size_t> todo;
-  for (std::size_t i = 0; i < jobs.size(); ++i) {
-    auto it = book.find({canons[i].cols, canons[i].occ});
-    if (it == book.end() ||
-        (it->second.value != SOLVED_DRAW && it->second.value < PROVEN &&
-         it->second.value > -PROVEN))
-      todo.push_back(i);
+void write_book(const std::string &path, const Book &book) {
+  const std::string tmp = path + ".tmp";
+  std::FILE *f = std::fopen(tmp.c_str(), "wb");
+  if (!f)
+    throw std::runtime_error("cannot write " + tmp);
+  std::fwrite(BOOK_MAGIC, 1, sizeof BOOK_MAGIC, f);
+  for (const auto &[key, e] : book) {
+    Bitboard cells = 0;
+    for (int c = 0; c < 16; ++c)
+      if (e.gives[c])
+        cells |= Bitboard(1u << c);
+    std::fwrite(&key.first, sizeof key.first, 1, f);
+    std::fwrite(&key.second, sizeof key.second, 1, f);
+    std::fwrite(&e.value, sizeof e.value, 1, f);
+    std::fwrite(&cells, sizeof cells, 1, f);
+    for (int c = 0; c < 16; ++c)
+      if (e.gives[c])
+        std::fwrite(&e.gives[c], sizeof e.gives[c], 1, f);
   }
-  std::printf("jobs:     %zu, %zu already in %s\n", jobs.size(),
-              jobs.size() - todo.size(), book_path.c_str());
-  std::fflush(stdout);
+  if (std::fclose(f) != 0)
+    throw std::runtime_error("cannot write " + tmp);
+  std::filesystem::rename(tmp, path); // throws on failure, keeps tmp
+}
 
-  auto write_line = [](std::FILE *f, const CanonKey &key, BookEntry e) {
-    std::fprintf(f, "%016llx %04x %d %d %d\n", (unsigned long long)key.first,
-                 unsigned(key.second), int(e.value), int(e.move.cell),
-                 int(e.move.give));
+SolveResult Solver::full_solve(unsigned threads, const std::string &book_path) {
+  // Solved in the order they were found, each from the position as it was
+  // reached: neighbouring jobs then share most of their board, in the same
+  // frame, so their subtrees meet in the TT. On ply-4 jobs that is 1.3x
+  // faster than solving them by sorted key, from canonical positions.
+  const std::vector<Job> jobs = create_jobs_();
+  // Job indices sorted by key, to find a job by binary search.
+  std::vector<std::uint32_t> by_key(jobs.size());
+  std::iota(by_key.begin(), by_key.end(), 0u);
+  std::sort(by_key.begin(), by_key.end(), [&](std::uint32_t a, std::uint32_t b) {
+    return jobs[a].key < jobs[b].key;
+  });
+  // The index of the job with `key`, or jobs.size() if there is none.
+  auto job_index = [&](const CanonKey &key) {
+    auto it = std::lower_bound(
+        by_key.begin(), by_key.end(), key,
+        [&](std::uint32_t i, const CanonKey &k) { return jobs[i].key < k; });
+    return it != by_key.end() && jobs[*it].key == key ? std::size_t(*it)
+                                                      : jobs.size();
   };
 
-  std::FILE *out = std::fopen(book_path.c_str(), "a");
+  // Values of jobs solved by an earlier, interrupted run.
+  constexpr Score UNSOLVED = std::numeric_limits<Score>::min();
+  std::vector<Score> values(jobs.size(), UNSOLVED);
+  const std::string checkpoint = book_path + ".jobs";
+  if (std::FILE *in = std::fopen(checkpoint.c_str(), "r")) {
+    unsigned long long cols;
+    unsigned occ;
+    int value;
+    while (std::fscanf(in, "%llx %x %d", &cols, &occ, &value) == 3) {
+      const CanonKey key = {cols, Bitboard(occ)};
+      const std::size_t i = job_index(key);
+      // A win or loss from a run without distances has none to reuse.
+      const bool lacks_distance = value != 0 && std::abs(value) < PROVEN;
+      if (i < jobs.size() && !(distances_ && lacks_distance))
+        values[i] = Score(value);
+    }
+    std::fclose(in);
+  }
+  std::vector<std::size_t> todo;
+  for (std::size_t i = 0; i < jobs.size(); ++i)
+    if (values[i] == UNSOLVED)
+      todo.push_back(i);
+  std::printf("jobs:     %zu, %zu already in %s\n", jobs.size(),
+              jobs.size() - todo.size(), checkpoint.c_str());
+  std::fflush(stdout);
+
+  std::FILE *out = std::fopen(checkpoint.c_str(), "a");
   if (!out)
-    throw std::runtime_error("cannot write " + book_path);
+    throw std::runtime_error("cannot write " + checkpoint);
   std::atomic<std::size_t> next{0};
   std::atomic<std::uint64_t> total_nodes{0};
-  std::mutex lock; // guards book, out and stdout
+  std::mutex lock; // guards out and stdout
   tt_.new_search();
   {
     std::vector<std::jthread> workers;
@@ -96,23 +177,29 @@ SolveResult Solver::full_solve(unsigned threads,
         // A copy: same TT and settings, its own node count.
         Solver solver(*this);
         for (std::size_t n; (n = next.fetch_add(1)) < todo.size();) {
-          const std::size_t i = todo[n];
-          Position pos = jobs[i]; // a copy: solve() modifies it
-          SolveResult r = solver.solve(pos);
+          const Job &job = jobs[todo[n]];
+          Position pos;
+          pos.load(job.occ,
+                   {Bitboard(job.props), Bitboard(job.props >> 16),
+                    Bitboard(job.props >> 32), Bitboard(job.props >> 48)},
+                   job.hand);
+          const Score value = solver.solve(pos).value;
           total_nodes += solver.nodes();
-          const CanonKey key = {canons[i].cols, canons[i].occ};
-          const BookEntry e = {r.value, to_canonical(r.move, canons[i])};
+          values[todo[n]] = value; // its own slot: no lock needed
           std::lock_guard guard(lock);
-          book[key] = e;
           // Saved at once, so a crash loses at most the jobs still running.
-          write_line(out, key, e);
+          std::fprintf(out, "%016llx %04x %d\n",
+                       (unsigned long long)job.key.first,
+                       unsigned(job.key.second), int(value));
           std::fflush(out);
-          std::printf("job %zu/%zu: %s, %llu nodes\n", n + 1, todo.size(),
-                      outcome(r.value), (unsigned long long)solver.nodes());
-          std::fflush(stdout);
+          // Millions of jobs: a line per thousand is enough.
+          if ((n + 1) % 1000 == 0 || n + 1 == todo.size()) {
+            std::printf("job %zu/%zu\n", n + 1, todo.size());
+            std::fflush(stdout);
+          }
         }
       });
-  } // every thread is joined here, so every job is in the book
+  } // every thread is joined here, so every job has its value
   std::fclose(out);
   nodes_ = total_nodes;
 
@@ -120,90 +207,110 @@ SolveResult Solver::full_solve(unsigned threads,
   // the empty board's value is minus that position's, for any give.
   Position pos;
   pos.load(0, {0, 0, 0, 0}, 0);
-  std::set<CanonKey> done;
-  const Score value = combine(0, pos, book, done);
-
-  // Written to a new file first, then swapped in with one rename that
-  // replaces the old book, so at every moment there is a complete book.
-  const std::string tmp = book_path + ".tmp";
-  std::FILE *f = std::fopen(tmp.c_str(), "w");
-  if (!f)
-    throw std::runtime_error("cannot write " + tmp);
-  std::fprintf(f, "# cols occ value cell give (canonical frame)\n");
-  for (const auto &[key, e] : book)
-    write_line(f, key, e);
-  if (std::fclose(f) != 0)
-    throw std::runtime_error("cannot write " + tmp);
-  std::filesystem::rename(tmp, book_path); // throws on failure, keeps tmp
+  std::vector<std::pair<CanonKey, Score>> solved;
+  solved.reserve(jobs.size());
+  for (std::uint32_t i : by_key)
+    solved.push_back({jobs[i].key, values[i]});
+  Book book;
+  const Score value = combine(0, pos, solved, book);
+  write_book(book_path, book);
+  std::filesystem::remove(checkpoint);
 
   return {Score(-value), {-1, 0}};
 }
 
-Score Solver::combine(int ply, Position &pos, Book &book,
-                      std::set<CanonKey> &done) {
+Score Solver::combine(int ply, Position &pos,
+                      const std::vector<std::pair<CanonKey, Score>> &values,
+                      Book &book) {
   const Canon c = canonicalize(pos);
   const CanonKey key = {c.cols, c.occ};
-  // A job, or a position this run already combined (as an equivalent one).
-  if (ply == SEARCH_START_PLY || done.contains(key))
-    return book.at(key).value;
-  // Same moves as find_position, which are the moves negamax searches. With
-  // none, the opponent wins with the next placement.
+  if (ply == SEARCH_START_PLY)
+    return std::lower_bound(values.begin(), values.end(), key,
+                            [](const auto &v, const CanonKey &k) {
+                              return v.first < k;
+                            })
+        ->second;
+  // Combined already, as this or an equivalent position.
+  if (auto it = book.find(key); it != book.end())
+    return it->second.value;
+
+  // Same moves as find_jobs, which are the moves negamax searches. Every
+  // score is kept, so that every move achieving the best can be listed.
+  std::array<std::array<Score, 16>, 16> scores; // [cell][give]
+  std::array<Bitboard, 16> safe{};              // gives searched per cell
+  // With no safe give, the opponent wins with the next placement.
   Score best = Score(-win_score(std::popcount(pos.occupied()) + 2));
-  Move best_move = EMPTY_MOVE;
+  bool any_safe = false;
   for (Bitboard empty = pos.empty_cells(); empty; empty &= empty - 1) {
     const Cell cell = Cell(std::countr_zero(empty));
     pos.place_piece(cell);
-    for (Bitboard safe = pos.available() & ~winning_pieces(pos); safe;
-         safe &= safe - 1) {
-      const Piece give = Piece(std::countr_zero(safe));
+    safe[cell] = pos.available() & ~winning_pieces(pos);
+    for (Bitboard s = safe[cell]; s; s &= s - 1) {
+      const Piece give = Piece(std::countr_zero(s));
       pos.give_piece(give);
-      const Score score = Score(-combine(ply + 1, pos, book, done));
+      const Score score = Score(-combine(ply + 1, pos, values, book));
       pos.undo_give_piece();
-      if (best_move.cell < 0 || score > best) {
+      scores[cell][give] = score;
+      if (!any_safe || score > best)
         best = score;
-        best_move = {cell, give};
-      }
+      any_safe = true;
     }
     pos.undo_place_piece();
   }
-  // No placement leaves a safe give: every move loses at once, so any one
-  // will do.
-  if (best_move.cell < 0)
-    best_move = {Cell(std::countr_zero(pos.empty_cells())),
-                 Piece(std::countr_zero(pos.available()))};
-  book[key] = {best, to_canonical(best_move, c)};
-  done.insert(key);
+
+  BookEntry e{best, {}};
+  for (Bitboard empty = pos.empty_cells(); empty; empty &= empty - 1) {
+    const Cell cell = Cell(std::countr_zero(empty));
+    // When every move loses at once, every move is listed.
+    Bitboard gives = pos.available();
+    if (any_safe) {
+      gives = 0;
+      for (Bitboard s = safe[cell]; s; s &= s - 1)
+        if (scores[cell][std::countr_zero(s)] == best)
+          gives |= Bitboard(s & -s);
+    }
+    for (; gives; gives &= gives - 1) {
+      const Move m = to_canonical({cell, Piece(std::countr_zero(gives))}, c);
+      e.gives[m.cell] |= Bitboard(1u << m.give);
+    }
+  }
+  book[key] = e;
   return best;
 }
 
-std::vector<Position> Solver::create_positions_() {
-  std::vector<Position> positions;
-  std::set<CanonKey> seen;
+std::vector<Solver::Job> Solver::create_jobs_() {
+  std::vector<Job> jobs;
+  std::unordered_set<CanonKey, CanonKeyHash> seen;
   // Every first give is equivalent, so piece 0 in hand covers them all.
   Position pos;
   pos.load(0, {0, 0, 0, 0}, 0);
-  find_position(0, pos, seen, positions);
-  return positions;
+  find_jobs(0, pos, seen, jobs);
+  return jobs;
 }
 
-// Adds every position SEARCH_START_PLY turns below `pos` to `positions`,
-// one per group of equivalent positions. `seen` holds the canonical form
-// of every position visited so far, at any ply: positions at different
-// plies have different piece counts, so they never share one.
+// Adds every position SEARCH_START_PLY turns below `pos` to `jobs`,
+// once per group of equivalent positions. `seen` holds the key of
+// every position visited so far, at any ply: positions at different plies
+// have different piece counts, so they never share one.
 //
 // Only safe gives are followed, as in negamax: a give that lets the
 // opponent complete a line loses at once, so it is never the best move
 // unless every give does that, and then the position is a proven loss
 // that needs no job. So no position here has a piece in hand that can win,
 // and no placement needs a win check.
-void Solver::find_position(int ply, Position &pos,
-                           std::set<CanonKey> &seen,
-                           std::vector<Position> &positions) {
+void Solver::find_jobs(int ply, Position &pos,
+                       std::unordered_set<CanonKey, CanonKeyHash> &seen,
+                       std::vector<Job> &jobs) {
   Canon c = canonicalize(pos);
   if (!seen.insert({c.cols, c.occ}).second)
     return; // an equivalent position was already expanded or listed
   if (ply == SEARCH_START_PLY) {
-    positions.push_back(pos);
+    const auto &p = pos.props();
+    jobs.push_back({{c.cols, c.occ},
+                    std::uint64_t(p[0]) | std::uint64_t(p[1]) << 16 |
+                        std::uint64_t(p[2]) << 32 | std::uint64_t(p[3]) << 48,
+                    pos.occupied(),
+                    pos.in_hand()});
     return;
   }
   for (Bitboard empty = pos.empty_cells(); empty; empty &= empty - 1) {
@@ -211,7 +318,7 @@ void Solver::find_position(int ply, Position &pos,
     for (Bitboard safe = pos.available() & ~winning_pieces(pos); safe;
          safe &= safe - 1) {
       pos.give_piece(Piece(std::countr_zero(safe)));
-      find_position(ply + 1, pos, seen, positions);
+      find_jobs(ply + 1, pos, seen, jobs);
       pos.undo_give_piece();
     }
     pos.undo_place_piece();
@@ -243,7 +350,10 @@ SolveResult Solver::solve(Position &pos) {
   // hold, so the score that comes back is exact.
   Move best = EMPTY_MOVE;
   Score value = search_root(pos, -1, 1, best);
-  if (value >= 1)
+  if (!distances_)
+    // Fail-hard: a win or loss is only a bound here, so it keeps its sign.
+    value = Score(value > 0 ? 1 : value < 0 ? -1 : 0);
+  else if (value >= 1)
     value = search_root(pos, Score(PROVEN - 1), WIN, best);
   else if (value <= -1)
     value = search_root(pos, Score(-WIN), Score(1 - PROVEN), best);

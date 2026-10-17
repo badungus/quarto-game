@@ -46,9 +46,30 @@ Result Engine::best_move(Position &pos) {
   }
   if (pos.in_hand() >= 0) {
     Canon c = canonicalize(pos);
-    if (auto it = book_.find({c.cols, c.occ}); it != book_.end())
-      return {it->second.value, from_canonical(it->second.move, c), depth,
+    auto it = book_.find({c.cols, c.occ});
+    int count = 0; // best moves listed for the position
+    if (it != book_.end())
+      for (Bitboard g : it->second.gives)
+        count += std::popcount(g);
+    if (count > 0) {
+      // One of the best moves, at random, so games from the book vary.
+      const auto &gives = it->second.gives;
+      int pick = int(gen_() % unsigned(count));
+      Move move = EMPTY_MOVE;
+      for (int cell = 0; cell < 16 && move.cell < 0; ++cell) {
+        const int n = std::popcount(gives[cell]);
+        if (pick >= n) {
+          pick -= n;
+          continue;
+        }
+        Bitboard g = gives[cell];
+        while (pick--)
+          g &= g - 1;
+        move = {Cell(cell), Piece(std::countr_zero(g))};
+      }
+      return {it->second.value, from_canonical(move, c), depth,
               true, 0, mate_distance(it->second.value, pos)};
+    }
   }
   // Every TT entry is a bound on a proven score, so entries from earlier
   // moves stay valid; the new generation only lets them be replaced.

@@ -4,10 +4,11 @@
 #include "types.hpp"
 #include <atomic>
 #include <cstdint>
+#include <array>
 #include <map>
-#include <set>
 #include <string>
 #include <thread>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -60,21 +61,44 @@ struct SolveResult {
   Move move;
 };
 
-// A canonical position: cols and occ of its Canon.
+// A canonical position: cols and occ of its Canon. With piece 0 in hand it is
+// a position itself, equivalent to every position it is the key of: load it
+// with canonical_position.
 using CanonKey = std::pair<std::uint64_t, Bitboard>;
-// A solved value and a move achieving it, in the canonical frame:
-// from_canonical maps the move into any equivalent position.
+Position canonical_position(const CanonKey &key);
+struct CanonKeyHash {
+  std::size_t operator()(const CanonKey &key) const {
+    // A multiply-xorshift mix: cols alone are close to sequential.
+    std::uint64_t h = (key.first ^ key.second) * 0x9E3779B97F4A7C15ull;
+    return std::size_t(h ^ (h >> 32));
+  }
+};
+
+// A book position: its value and every move achieving it, in the canonical
+// frame (from_canonical maps each into any equivalent position). Bit g of
+// gives[c] is set when placing on cell c and giving piece g is best. When
+// every move loses at once, every move is set.
 struct BookEntry {
   Score value;
-  Move move;
+  std::array<Bitboard, 16> gives;
 };
 using Book = std::map<CanonKey, BookEntry>;
 
-// The opening book written by Solver::full_solve. One position per line:
-// cols and occ in hex, then value, cell and give. Lines that do not parse
-// (comments start with '#') are skipped; a missing file is an empty book.
-// Books from before solves had distances store wins and losses as 1 and -1.
+// The opening book written by Solver::full_solve, a binary file: BOOK_MAGIC,
+// then one record per position, in key order. A record is cols (8 bytes), occ
+// (2), value (2), a mask of the cells with a best move (2), and gives[c] (2
+// each) for the cells in that mask, lowest first; all little-endian. A missing
+// file is an empty book.
+//
+// A file that does not start with BOOK_MAGIC is read as the older text book
+// (book.txt): one position per line, cols and occ in hex, then value, cell
+// and give, one best move each. Its wins and losses are 1 and -1, with no
+// distance. Lines that do not parse (comments start with '#') are skipped.
+inline constexpr char BOOK_MAGIC[8] = {'Q', 'B', 'O', 'O', 'K', 'v', '2', 0};
 Book read_book(const std::string &path);
+// Writes `book` to `path` at once: to a new file first, then renamed over the
+// old one, so at every moment there is a complete book.
+void write_book(const std::string &path, const Book &book);
 
 class Solver {
 private:
@@ -86,21 +110,39 @@ private:
     return stop_ && stop_->load(std::memory_order_relaxed);
   }
 
-  std::vector<Position> create_positions_();
-  void find_position(int ply, Position &pos, std::set<CanonKey> &seen,
-                     std::vector<Position> &positions);
+  // A full-solve job: its canonical key, and the position as the search
+  // first reached it, which is what gets solved.
+  struct Job {
+    CanonKey key;
+    std::uint64_t props; // the four property boards, 16 bits each
+    Bitboard occ;
+    Piece hand;
+  };
+  // The full solve's jobs: every position SEARCH_START_PLY turns in, one
+  // per group of equivalent positions, in the order they are found.
+  std::vector<Job> create_jobs_();
+  void find_jobs(int ply, Position &pos,
+                 std::unordered_set<CanonKey, CanonKeyHash> &seen,
+                 std::vector<Job> &jobs);
   // Value of `pos` for the side to move, `ply` turns below the empty board,
-  // from the book entries of the positions SEARCH_START_PLY turns in. Adds
-  // every position above those to the book, with its best move. `done` holds
-  // the positions combined so far, so each is combined once.
-  Score combine(int ply, Position &pos, Book &book, std::set<CanonKey> &done);
+  // from the values of the jobs, sorted by key. Adds every position above
+  // the jobs to the book, with all its best moves; a position already in it
+  // is not combined again.
+  Score combine(int ply, Position &pos,
+                const std::vector<std::pair<CanonKey, Score>> &values,
+                Book &book);
 
   // Positions with at most this many pieces are keyed by their canonical
   // form, so equivalent positions share a TT entry; deeper ones by the
   // position as it is. The piece count decides, so a position always gets the
   // same kind of key, and the two kinds never meet. -1 turns canonical keys
-  // off, which only the check program does.
-  int canon_max_pieces_ = 10;
+  // off, which only the check program does. 11 by benchmark: on ply-6 jobs,
+  // 3.5-6% faster than 10, and 12 or 9 are slower than both.
+  int canon_max_pieces_ = 11;
+
+  // False skips the second search: wins and losses then score 1 and -1, with
+  // no distance, as in a book written before solves had distances.
+  bool distances_ = true;
 
   // Fail-hard alpha-beta value of `pos` for the side to move, in a position
   // where the piece in hand cannot win (the parent only gives safe pieces).
@@ -118,21 +160,23 @@ public:
   void set_stop(const std::atomic<bool> *stop) { stop_ = stop; }
   // Clear the TT after changing this: the two kinds of key must not meet.
   void set_canon_max_pieces(int n) { canon_max_pieces_ = n; }
+  void set_distances(bool on) { distances_ = on; }
   // `pos` is modified during the solve and restored before returning.
   SolveResult solve(Position &pos);
   // Solves the empty board on `threads` threads sharing the TT: each solves
-  // positions a few turns in, and their values are combined. Prints a line
-  // per finished job.
+  // positions a few turns in (the jobs), and their values are combined.
+  // Prints a line per finished job.
   //
-  // `book_path` is an opening book and a checkpoint at once. Each solved job
-  // is appended to it as it finishes, and jobs already in it are skipped, so
-  // an interrupted solve resumes where it stopped. Wins and losses without a
-  // distance (an older book) are solved again. At the end the file is
-  // rewritten with every position from the empty board down to the jobs.
-  // One position per line: cols and occ in hex, then value, cell and give,
-  // the move in the canonical frame.
+  // The book written to `book_path` holds every position from the empty
+  // board down to the turn before the jobs, with all its best moves; the
+  // jobs give the values and are not in it. Their values go to a checkpoint,
+  // `book_path` + ".jobs", appended as each job finishes, one per line: cols
+  // and occ in hex, then the value. Jobs already in it are skipped, so an
+  // interrupted solve resumes where it stopped; with distances on, a win or
+  // loss saved without one is solved again. Once the book is written the
+  // checkpoint is deleted.
   SolveResult full_solve(unsigned threads = std::thread::hardware_concurrency(),
-                         const std::string &book_path = "book.txt");
+                         const std::string &book_path = "book.bin");
   // Nodes visited by the last solve.
   std::uint64_t nodes() const { return nodes_; }
 };

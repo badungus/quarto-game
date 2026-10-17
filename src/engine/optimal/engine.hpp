@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <random>
 #include <string>
 #include <thread>
 #include <tuple>
@@ -36,6 +37,7 @@ private:
   Position pos_;
   TranspositionTable tt_;
   Book book_;
+  std::mt19937_64 gen_{std::random_device{}()}; // picks among best book moves
   std::atomic<bool> stop_ = false;
   Solver solver_;       // declared after tt_ and stop_, which it refers to
   std::jthread thread_; // declared last: joins before the rest is gone
