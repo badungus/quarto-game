@@ -48,17 +48,4 @@ std::array<Score, 16> compute_prior(const Position &pos) {
   return prior;
 };
 
-Piece best_give(Bitboard &avail, std::array<int, 16> &history) {
-
-  int best = std::countr_zero(avail);
-  for (Bitboard b = avail & (avail - 1); b; b &= b - 1) {
-    int i = std::countr_zero(b);
-    if (history[i] > history[best]) {
-      best = i;
-    }
-  }
-  avail &= ~(Bitboard{1} << best);
-  return best;
-};
-
 } // namespace quarto

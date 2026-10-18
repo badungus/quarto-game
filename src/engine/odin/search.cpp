@@ -233,9 +233,6 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   auto cutoff = [&] {
     if (!stop_)
       tt_.store(key, alpha, depth, to_tt(best_move), Bound::Lower);
-    history_[pos.in_hand()][best_move.cell] +=
-        (16 - move_number) * (16 - move_number);
-    give_history_[best_move.give] += (16 - move_number) * (16 - move_number);
     return alpha;
   };
 
@@ -262,8 +259,9 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     pos.undo_place_piece();
   }
 
-  // Stage 2: every other move, cells and gives ordered by history. The TT
-  // give on the TT cell was already searched in stage 1, so it is skipped.
+  // Stage 2: every other move, cells ordered by threat prior and gives in index
+  // order. The TT give on the TT cell was already searched in stage 1, so it is
+  // skipped.
   Bitboard empty = pos.empty_cells();
   std::array<Score, 16> prior = compute_prior(pos);
   while (empty) {
@@ -277,7 +275,8 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     if (avail)
       any_safe = true;
     while (avail) {
-      Piece give = best_give(avail, give_history_);
+      Piece give = std::countr_zero(avail);
+      avail &= avail - 1;
       if (search_give(cell, give)) {
         pos.undo_place_piece();
         return cutoff();

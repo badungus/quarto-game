@@ -71,7 +71,7 @@ speak UQI on stdin/stdout.
 |-------------|----------|
 | **Baldur**  | Baseline: iterative-deepening negamax with alpha-beta pruning on a bitboard position, root moves searched with a full window. |
 | **Thor**    | Baldur plus a check for an immediate win before any subtree is searched, a narrowed root window that cuts off worse moves early, and win scores based on the number of pieces on the board. |
-| **Odin**    | Thor plus a transposition table (exact keys, packed 16-byte entries, generations), symmetry reduction (32 board symmetries × 384 piece relabelings) for shallow positions, and history-based move ordering. |
+| **Odin**    | Thor plus a transposition table (exact keys, packed 16-byte entries, generations), symmetry reduction (32 board symmetries × 384 piece relabelings) for shallow positions, and threat-based cell ordering. |
 | **Optimal** | Perfect play. Plays from an opening book (`src/engine/optimal/book.bin`) while the position is in it, picking at random among the best moves, and solves the position to the end of the game after that. Ignores depth and move-time limits. The book shows the start position is a draw. |
 
 Baldur, Thor and Odin accept `depth`, `movetime` and `infinite` limits and

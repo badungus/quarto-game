@@ -54,8 +54,6 @@ private:
   std::uint64_t seed_ = std::random_device{}();
   std::mt19937_64 gen_{seed_};
   TranspositionTable &tt_; // owned by Engine, shared across searches
-  std::array<std::array<int, 16>, 16> history_{};
-  std::array<int, 16> give_history_{};
 
   // Scores every legal root move at `depth` and returns all moves tied for
   // the best score (never empty).
