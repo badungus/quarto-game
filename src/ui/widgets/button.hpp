@@ -19,11 +19,12 @@ private:
   const Texture2D &hover_image_;
   const Texture2D &armed_image_;
   ButtonContent content_;
+  float text_scale_; // multiplies the default text size
 
 public:
   Button(Rectangle bounds, const Texture2D &background,
          const Texture2D &hover_image, const Texture2D &armed_image,
-         ButtonContent content);
+         ButtonContent content, float text_scale = 1.0f);
   // Updates hover state; returns true if the button was clicked this frame.
   bool update(const Input &in);
   void draw() const;

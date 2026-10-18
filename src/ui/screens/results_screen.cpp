@@ -16,9 +16,11 @@ namespace {
 // Top of the first log line, below the score header.
 constexpr float LOG_Y =
     MATCH_OUTPUT_Y + MATCH_OUTPUT_PADDING + 2 * MATCH_OUTPUT_LINE;
-constexpr int VISIBLE_LINES =
-    (int)((MATCH_OUTPUT_Y + MATCH_OUTPUT_HEIGHT - MATCH_OUTPUT_PADDING - LOG_Y) /
-          MATCH_OUTPUT_LINE);
+int VISIBLE_LINES() {
+  return (int)((MATCH_OUTPUT_Y + MATCH_OUTPUT_HEIGHT() - MATCH_OUTPUT_PADDING -
+                LOG_Y) /
+               MATCH_OUTPUT_LINE);
+}
 
 // Value of a digits-only TextField, or fallback when it is empty.
 int field_value(const TextField &field, int fallback) {
@@ -112,7 +114,7 @@ Action EngineMatch::update(const Input &in) {
 
   rules_.set_content(squares_ ? "2X2 SQUARES ON" : "2X2 SQUARES OFF");
 
-  int max_scroll = std::max(0, (int)log_.size() - VISIBLE_LINES);
+  int max_scroll = std::max(0, (int)log_.size() - VISIBLE_LINES());
   scroll_ = std::clamp(scroll_ + 3 * (int)GetMouseWheelMove(), 0, max_scroll);
 
   if (start_.update(in)) {
@@ -275,7 +277,7 @@ void EngineMatch::draw_output() const {
                       NPATCH_NINE_PATCH};
   DrawTextureNPatch(background, patch,
                     {MATCH_OUTPUT_X * s, MATCH_OUTPUT_Y * s,
-                     MATCH_OUTPUT_WIDTH * s, MATCH_OUTPUT_HEIGHT * s},
+                     MATCH_OUTPUT_WIDTH() * s, MATCH_OUTPUT_HEIGHT() * s},
                     {0, 0}, 0.0f, WHITE);
 
   const Color color = GetColor(0x1E1E1EFF);
@@ -292,7 +294,7 @@ void EngineMatch::draw_output() const {
            (int)(1.4f * font_size), color);
 
   const int last = (int)log_.size() - scroll_;
-  const int first = std::max(0, last - VISIBLE_LINES);
+  const int first = std::max(0, last - VISIBLE_LINES());
   for (int i = first; i < last; ++i)
     DrawText(log_[i].c_str(), x,
              (int)((LOG_Y + (i - first) * MATCH_OUTPUT_LINE) * s), font_size,

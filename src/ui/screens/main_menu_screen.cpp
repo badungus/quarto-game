@@ -12,32 +12,32 @@
 MainMenu::MainMenu(Game &game, MatchController &match_controller,
                    MatchConfig &match_config, const Assets &assets)
     : game_(game), match_config_(match_config),
-      start_({START_X, START_Y, START_WIDTH, START_HEIGHT},
+      start_({START_X(), START_Y, START_WIDTH, START_HEIGHT},
              assets.pool_button_background, assets.pool_button_hover,
              assets.pool_button_armed, "Start"),
-      engine_match_({START_X, MENU_MATCH_Y, START_WIDTH, MENU_MATCH_HEIGHT},
+      engine_match_({START_X(), MENU_MATCH_Y(), START_WIDTH, MENU_MATCH_HEIGHT},
                     assets.pool_button_background, assets.pool_button_hover,
                     assets.pool_button_armed, "Engine Match"),
       player_1_dd_(
-          {PLAYER_1_DD_X, MENU_DD_Y, PLAYER_DD_WIDTH, MENU_DD_HEIGHT},
+          {PLAYER_1_DD_X(), MENU_DD_Y(), PLAYER_DD_WIDTH, MENU_DD_HEIGHT},
           assets.pool_button_background, assets.pool_button_hover,
           assets.pool_button_armed, "PLAYER ONE",
           std::vector<ButtonContent>(PLAYERS.begin(), PLAYERS.end())),
       player_2_dd_(
-          {PLAYER_2_DD_X, MENU_DD_Y, PLAYER_DD_WIDTH, MENU_DD_HEIGHT},
+          {PLAYER_2_DD_X(), MENU_DD_Y(), PLAYER_DD_WIDTH, MENU_DD_HEIGHT},
           assets.pool_button_background, assets.pool_button_hover,
           assets.pool_button_armed, "PLAYER TWO",
           std::vector<ButtonContent>(PLAYERS.begin(), PLAYERS.end())),
-      rules_({START_X, MENU_RULES_Y, START_WIDTH, SETTING_HEIGHT},
+      rules_({START_X(), MENU_RULES_Y(), START_WIDTH, SETTING_HEIGHT},
              assets.pool_button_background, assets.pool_button_hover,
              assets.pool_button_armed, "") {
-  const float column_x[2] = {PLAYER_1_DD_X, PLAYER_2_DD_X};
+  const float column_x[2] = {PLAYER_1_DD_X(), PLAYER_2_DD_X()};
   const int n = ENGINE_SETTINGS.size();
   for (int p = 0; p < 2; ++p) {
     for (int i = 0; i < n; ++i) {
       const EngineSetting &s = ENGINE_SETTINGS[i];
       Rectangle r = {column_x[p],
-                     MENU_SETTING_BOTTOM_Y - (n - i) * SETTING_HEIGHT,
+                     MENU_SETTING_BOTTOM_Y() - (n - i) * SETTING_HEIGHT,
                      PLAYER_DD_WIDTH, SETTING_HEIGHT};
       if (s.kind == SettingKind::Number)
         settings_ui_[p].emplace_back(

@@ -10,10 +10,10 @@ Screen::Screen(const Assets &assets)
     : main_menu_(game, match_controller, match_config, assets),
       game_screen_(game, match_controller, assets), assets_(assets),
       engine_match_(game, match_controller, match_config, assets),
-      home_button_(Rectangle{HOME_BUTTON_X, HOME_BUTTON_Y, HOME_BUTTON_WIDTH,
+      home_button_(Rectangle{HOME_BUTTON_X(), HOME_BUTTON_Y, HOME_BUTTON_WIDTH,
                              HOME_BUTTON_HEIGHT},
                    assets.pool_button_background, assets.pool_button_hover,
-                   assets.pool_button_armed, "QUARTO!") {};
+                   assets.pool_button_armed, "QUARTO!", 2.0f) {};
 
 void Screen::update(const Input &in) {
   ScreenId screen = current_;
@@ -84,7 +84,8 @@ void Screen::draw_navbar() {
                       BORDER,
                       BORDER,
                       NPATCH_NINE_PATCH};
-  DrawTextureNPatch(navbar, patch, {0, 0, DESIGN_WIDTH * s, NAVBAR_HEIGHT * s},
-                    {0, 0}, 0.0f, WHITE);
+  DrawTextureNPatch(navbar, patch,
+                    {0, 0, canvas_width() * s, NAVBAR_HEIGHT * s}, {0, 0},
+                    0.0f, WHITE);
   home_button_.draw();
 };

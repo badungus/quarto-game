@@ -56,41 +56,41 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
                        const Assets &assets)
     : game_(game), match_controller_(match_controller), assets_(assets),
 
-      undo_(Rectangle{DESIGN_WIDTH / 2 - (0.5f * BUTTON_COUNT * BUTTON_WIDTH),
-                      DESIGN_HEIGHT - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
+      undo_(Rectangle{canvas_width() / 2 - (0.5f * BUTTON_COUNT * BUTTON_WIDTH),
+                      canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                       BUTTON_HEIGHT},
             assets.pool_button_background, assets.pool_button_hover,
             assets.pool_button_armed, &assets.undo),
-      restart_(Rectangle{DESIGN_WIDTH / 2 -
+      restart_(Rectangle{canvas_width() / 2 -
                              (0.5f * (BUTTON_COUNT - 2)) * BUTTON_WIDTH,
-                         DESIGN_HEIGHT - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
+                         canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                          BUTTON_HEIGHT},
                assets.pool_button_background, assets.pool_button_hover,
                assets.pool_button_armed, &assets.restart),
 
-      stop_search_(Rectangle{DESIGN_WIDTH / 2 -
+      stop_search_(Rectangle{canvas_width() / 2 -
                                  (0.5f * (BUTTON_COUNT - 4) * BUTTON_WIDTH),
-                             DESIGN_HEIGHT - BORDER - BUTTON_HEIGHT,
+                             canvas_height() - BORDER - BUTTON_HEIGHT,
                              BUTTON_WIDTH, BUTTON_HEIGHT},
                    assets.pool_button_background, assets.pool_button_hover,
                    assets.pool_button_armed, &assets.stop_search),
-      pause_(Rectangle{DESIGN_WIDTH / 2 -
+      pause_(Rectangle{canvas_width() / 2 -
                            (0.5f * (BUTTON_COUNT - 6) * BUTTON_WIDTH),
-                       DESIGN_HEIGHT - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
+                       canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                        BUTTON_HEIGHT},
              assets.pool_button_background, assets.pool_button_hover,
              assets.pool_button_armed, &assets.pause),
 
-      resume_(Rectangle{DESIGN_WIDTH / 2 -
+      resume_(Rectangle{canvas_width() / 2 -
                             (0.5f * (BUTTON_COUNT - 8) * BUTTON_WIDTH),
-                        DESIGN_HEIGHT - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
+                        canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                         BUTTON_HEIGHT},
               assets.pool_button_background, assets.pool_button_hover,
               assets.pool_button_armed, &assets.resume),
 
-      redo_(Rectangle{DESIGN_WIDTH / 2 -
+      redo_(Rectangle{canvas_width() / 2 -
                           (0.5f * (BUTTON_COUNT - 10) * BUTTON_WIDTH),
-                      DESIGN_HEIGHT - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
+                      canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                       BUTTON_HEIGHT},
             assets.pool_button_background, assets.pool_button_hover,
             assets.pool_button_armed, &assets.redo) {
@@ -100,7 +100,7 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
   for (int row = 0; row < POOL_ROWS; ++row) {
     for (int col = 0; col < POOL_COLS; ++col) {
       pool_buttons_.emplace_back(
-          Rectangle{POOL_X + col * POOL_TILE, POOL_Y + row * POOL_TILE,
+          Rectangle{POOL_X() + col * POOL_TILE, POOL_Y + row * POOL_TILE,
                     POOL_TILE, POOL_TILE},
           assets.pool_button_background, assets.pool_button_hover,
           assets.pool_button_armed,
@@ -111,7 +111,7 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
     int col = i % 4;
     int row = i / 4;
     board_buttons_.emplace_back(
-        Rectangle{BOARD_X + col * BOARD_TILE, BOARD_Y + row * BOARD_TILE,
+        Rectangle{BOARD_X() + col * BOARD_TILE, BOARD_Y + row * BOARD_TILE,
                   BOARD_TILE, BOARD_TILE},
         assets.pool_button_background, assets.pool_button_hover,
         assets.pool_button_armed, std::monostate{});
@@ -123,7 +123,7 @@ Action GameScreen::update(const Input &in) {
   int wheel = 3 * (int)GetMouseWheelMove();
   if (in.mouse.x < PLAYER_1_X + PLAYER_WIDTH)
     output_scroll_[0] = std::max(0, output_scroll_[0] + wheel);
-  else if (in.mouse.x >= PLAYER_2_X)
+  else if (in.mouse.x >= PLAYER_2_X())
     output_scroll_[1] = std::max(0, output_scroll_[1] + wheel);
 
   // board buttons
@@ -190,7 +190,7 @@ void GameScreen::draw_piece_pool() {
   int col = h % POOL_COLS;
   int row = h / POOL_COLS;
   const Texture2D &tex = assets_.winning_cell;
-  Rectangle dest = {(POOL_X + col * POOL_TILE) * s,
+  Rectangle dest = {(POOL_X() + col * POOL_TILE) * s,
                     (POOL_Y + row * POOL_TILE) * s, POOL_TILE * s,
                     POOL_TILE * s};
   NPatchInfo patch = {{0, 0, (float)tex.width, (float)tex.height},
@@ -212,9 +212,9 @@ void GameScreen::draw_board() {
                       BORDER,
                       NPATCH_NINE_PATCH};
   DrawTextureNPatch(background, patch,
-                    {(BOARD_X - BOARD_PADDING) * s,
+                    {(BOARD_X() - BOARD_PADDING) * s,
                      (BOARD_Y - BOARD_PADDING) * s,
-                     (BOARD_TILE * 4 + 2 * BOARD_PADDING) * 2,
+                     (BOARD_TILE * 4 + 2 * BOARD_PADDING) * s,
                      (BOARD_TILE * 4 + 2 * BOARD_PADDING) * s},
                     {0, 0}, 0.0f, WHITE);
   for (int i = 0; i < 16; ++i) {
@@ -227,7 +227,7 @@ void GameScreen::draw_board() {
     for (int i = 0; i < 4; ++i) {
       int col = winning_line[i] % 4;
       int row = winning_line[i] / 4;
-      Rectangle dest = {(BOARD_X + col * BOARD_TILE) * s,
+      Rectangle dest = {(BOARD_X() + col * BOARD_TILE) * s,
                         (BOARD_Y + row * BOARD_TILE) * s, BOARD_TILE * s,
                         BOARD_TILE * s};
       NPatchInfo patch = {{0, 0, (float)tex.width, (float)tex.height},
@@ -244,7 +244,7 @@ void GameScreen::draw_board() {
 void GameScreen::draw_hand_slot() {
   const Texture2D &background = assets_.pool_button_background;
   float s = ui_scale();
-  Rectangle dest = {HAND_X * s - HAND_SIZE * s / 2.0f,
+  Rectangle dest = {HAND_X() * s - HAND_SIZE * s / 2.0f,
                     HAND_Y * s - HAND_SIZE * s / 2.0f, s * HAND_SIZE,
                     s * HAND_SIZE};
 
@@ -279,10 +279,10 @@ void GameScreen::draw_player() {
                       NPATCH_NINE_PATCH};
 
   Rectangle dest_left = {PLAYER_1_X * s, PLAYER_Y * s, PLAYER_WIDTH * s,
-                         PLAYER_HEIGHT * s};
+                         PLAYER_HEIGHT() * s};
 
-  Rectangle dest_right = {PLAYER_2_X * s, PLAYER_Y * s, PLAYER_WIDTH * s,
-                          PLAYER_HEIGHT * s};
+  Rectangle dest_right = {PLAYER_2_X() * s, PLAYER_Y * s, PLAYER_WIDTH * s,
+                          PLAYER_HEIGHT() * s};
   DrawTextureNPatch(background, patch, dest_left, {0, 0}, 0.0f, WHITE);
   DrawTextureNPatch(background, patch, dest_right, {0, 0}, 0.0f, WHITE);
 
@@ -297,7 +297,7 @@ void GameScreen::draw_player() {
       NPATCH_NINE_PATCH};
   Rectangle name_1_dest = {PLAYER_1_NAME_X * s, PLAYER_NAME_Y * s,
                            PLAYER_NAME_WIDTH * s, PLAYER_NAME_HEIGHT * s};
-  Rectangle name_2_dest = {PLAYER_2_NAME_X * s, PLAYER_NAME_Y * s,
+  Rectangle name_2_dest = {PLAYER_2_NAME_X() * s, PLAYER_NAME_Y * s,
                            PLAYER_NAME_WIDTH * s, PLAYER_NAME_HEIGHT * s};
   DrawTextureNPatch(name_background, name_patch, name_1_dest, {0, 0}, 0.0f,
                     WHITE);
@@ -354,10 +354,11 @@ void GameScreen::draw_player() {
     const EngineInfo *latest = latest_info(info_player_1, game_.top());
     int16_t eval = latest ? latest->score.value_or(0) : 0;
     Rectangle eval_1_background_dest = {EVALBAR_1_X * s, EVALBAR_Y * s,
-                                        EVALBAR_WIDTH * s, EVALBAR_HEIGHT * s};
-    float evalbar_height = EVALBAR_HEIGHT * ((eval + WIN) / (2.0f * WIN));
+                                        EVALBAR_WIDTH * s,
+                                        EVALBAR_HEIGHT() * s};
+    float evalbar_height = EVALBAR_HEIGHT() * ((eval + WIN) / (2.0f * WIN));
     Rectangle eval_1_dest = {
-        EVALBAR_1_X * s, ((EVALBAR_Y + EVALBAR_HEIGHT - evalbar_height)) * s,
+        EVALBAR_1_X * s, ((EVALBAR_Y + EVALBAR_HEIGHT() - evalbar_height)) * s,
         EVALBAR_WIDTH * s, evalbar_height * s};
     DrawTextureNPatch(evalbar_background, evalbar_background_patch,
                       eval_1_background_dest, {0, 0}, 0.0f, WHITE);
@@ -375,22 +376,24 @@ void GameScreen::draw_player() {
     const EngineInfo *latest = latest_info(info_player_2, game_.top());
 
     int16_t eval = latest ? latest->score.value_or(0) : 0;
-    Rectangle eval_2_background_dest = {EVALBAR_2_X * s, EVALBAR_Y * s,
-                                        EVALBAR_WIDTH * s, EVALBAR_HEIGHT * s};
-    float evalbar_height = EVALBAR_HEIGHT * ((eval + WIN) / (2.0f * WIN));
-    Rectangle eval_2_dest = {
-        EVALBAR_2_X * s, ((EVALBAR_Y + EVALBAR_HEIGHT - evalbar_height)) * s,
-        EVALBAR_WIDTH * s, evalbar_height * s};
+    Rectangle eval_2_background_dest = {EVALBAR_2_X() * s, EVALBAR_Y * s,
+                                        EVALBAR_WIDTH * s,
+                                        EVALBAR_HEIGHT() * s};
+    float evalbar_height = EVALBAR_HEIGHT() * ((eval + WIN) / (2.0f * WIN));
+    Rectangle eval_2_dest = {EVALBAR_2_X() * s,
+                             ((EVALBAR_Y + EVALBAR_HEIGHT() - evalbar_height)) *
+                                 s,
+                             EVALBAR_WIDTH * s, evalbar_height * s};
     DrawTextureNPatch(evalbar_background, evalbar_background_patch,
                       eval_2_background_dest, {0, 0}, 0.0f, WHITE);
     DrawTextureNPatch(evalbar, evalbar_patch, eval_2_dest, {0, 0}, 0.0f, WHITE);
 
-    draw_engine_output(info_player_2, ENGINE_OUTPUT_PLAYER_2_X, 1);
+    draw_engine_output(info_player_2, ENGINE_OUTPUT_PLAYER_2_X(), 1);
   };
 };
 
-// Draws the end of the output that fits above ENGINE_OUTPUT_BOTTOM, moved back
-// by the player's scroll.
+// Draws the end of the output that fits above ENGINE_OUTPUT_BOTTOM(), moved
+// back by the player's scroll.
 void GameScreen::draw_engine_output(
     const std::array<std::vector<EngineInfo>, 17> &info, float x, int player) {
   struct Line {
@@ -406,8 +409,8 @@ void GameScreen::draw_engine_output(
       lines.push_back({info_text(output), false});
   }
 
-  constexpr int visible =
-      (int)((ENGINE_OUTPUT_BOTTOM - ENGINE_OUTPUT_Y) / ENGINE_OUTPUT_LINE);
+  const int visible =
+      (int)((ENGINE_OUTPUT_BOTTOM() - ENGINE_OUTPUT_Y) / ENGINE_OUTPUT_LINE);
   int &scroll = output_scroll_[player];
   const int count = lines.size();
   if (scroll > 0 && count > output_lines_[player])

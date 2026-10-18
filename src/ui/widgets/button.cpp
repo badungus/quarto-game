@@ -7,9 +7,9 @@
 
 Button::Button(Rectangle bounds, const Texture2D &background,
                const Texture2D &hover_image, const Texture2D &armed_image,
-               ButtonContent content)
+               ButtonContent content, float text_scale)
     : bounds_(bounds), background_(background), hover_image_(hover_image),
-      armed_image_(armed_image), content_(content) {}
+      armed_image_(armed_image), content_(content), text_scale_(text_scale) {}
 
 bool Button::update(const Input &in) {
   hover_ = CheckCollisionPointRec(in.mouse, bounds_) && enabled_;
@@ -37,7 +37,7 @@ void Button::draw() const {
 
   if (std::holds_alternative<std::string>(content_)) {
     const std::string &text = std::get<std::string>(content_);
-    int font_size = (int)(dest.height * 0.3f);
+    int font_size = (int)(dest.height * 0.3f * text_scale_);
     int text_width = MeasureText(text.c_str(), font_size);
     DrawText(text.c_str(), (int)(dest.x + (dest.width - text_width) / 2),
              (int)(dest.y + (dest.height - font_size) / 2), font_size,
