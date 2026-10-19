@@ -64,14 +64,17 @@ draw.
 
 ## Engines
 
-All engines live in `src/engine/<name>/`, build to their own executable and
-speak UQI on stdin/stdout.
+Every engine builds to its own executable and speaks UQI on stdin/stdout.
+Baldur, Thor and Odin are presets of one search engine in `src/engine/search/`:
+each search feature is a compile-time switch (`features.hpp`), and a preset is
+a set of switches (`src/engine/search/CMakeLists.txt`). Optimal is a separate
+program in `src/engine/optimal/`.
 
 | Engine      | Approach |
 |-------------|----------|
-| **Baldur**  | Baseline: iterative-deepening negamax with alpha-beta pruning on a bitboard position, root moves searched with a full window. |
-| **Thor**    | Baldur plus a check for an immediate win before any subtree is searched, a narrowed root window that cuts off worse moves early, and win scores based on the number of pieces on the board. |
-| **Odin**    | Thor plus a transposition table (exact keys, packed 16-byte entries, generations), symmetry reduction (32 board symmetries × 384 piece relabelings) for shallow positions, and threat-based cell ordering. |
+| **Baldur**  | Baseline: iterative-deepening negamax with alpha-beta pruning on a bitboard position, root moves searched with a full window. No features switched on. |
+| **Thor**    | Baldur plus a check for an immediate win before any subtree is searched, a leaf evaluation that recognises positions where every give loses, a narrowed root window that cuts off worse moves early, and win scores based on the number of pieces on the board. |
+| **Odin**    | Thor plus table-based win detection, only safe gives searched, a transposition table (exact keys, packed 16-byte entries, generations) with its best move searched first, symmetry reduction (32 board symmetries × 384 piece relabelings) for shallow positions, the previous best root move first, and threat-based cell ordering. |
 | **Optimal** | Perfect play. Plays from an opening book (`src/engine/optimal/book.bin`) while the position is in it, picking at random among the best moves, and solves the position to the end of the game after that. Ignores depth and move-time limits. The book shows the start position is a draw. |
 
 Baldur, Thor and Odin accept `depth`, `movetime` and `infinite` limits and
@@ -286,9 +289,7 @@ quarto-game/
 └── src/
     ├── main.cpp              creates the game and GUI and runs the main loop
     ├── engine/               standalone UQI engines, one executable each
-    │   ├── baldur/
-    │   ├── thor/
-    │   ├── odin/
+    │   ├── search/           baldur, thor, odin: one source, feature switches
     │   └── optimal/          solver + book.bin opening book
     ├── game/                 game state and rules, independent of the UI
     ├── match/                match configuration, turn flow, commands
@@ -327,7 +328,14 @@ game/      Game state, Move, rules
 
 ## Development notes
 
-- **Adding an engine**: create `src/engine/<name>/` with its own
+- **Adding a search engine variant**: add an `add_search_engine(<name>
+  FEATURE ...)` line to `src/engine/search/CMakeLists.txt` (features are listed
+  in `features.hpp`), and add an entry to `ENGINES` in
+  `src/game/match_config.hpp`.
+- **Adding a search feature**: add a switch to
+  `src/engine/search/features.hpp` and test it with `if constexpr` where the
+  search differs.
+- **Adding an engine of its own**: create `src/engine/<name>/` with its own
   `CMakeLists.txt`, add `add_subdirectory(src/engine/<name>)` to the root
   `CMakeLists.txt`, and add an entry to `ENGINES` in
   `src/game/match_config.hpp`.

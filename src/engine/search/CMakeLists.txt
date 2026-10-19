@@ -27,12 +27,12 @@ function(add_search_engine name)
     target_link_libraries(${name} PRIVATE ${name}_core)
 endfunction()
 
-# Presets. Named merged_* while the old engine directories still build the
-# real names, so both can be compared.
-add_search_engine(merged_baldur)
-add_search_engine(merged_thor
+# Presets. Until tag pre-merge each was its own copy of the source in
+# src/engine/<name>; these give output identical to those.
+add_search_engine(baldur)
+add_search_engine(thor
     PIECE_COUNT_SCORE WIN_CHECK_AT_ENTRY THREAT_EVAL NARROW_ROOT_WINDOW)
-add_search_engine(merged_odin
+add_search_engine(odin
     PIECE_COUNT_SCORE WIN_CHECK_AT_ENTRY THREAT_EVAL NARROW_ROOT_WINDOW
     COMPLETES_TABLE SAFE_GIVES TT TT_MOVE CANONICAL ROOT_BEST_FIRST
     THREAT_ORDERING)

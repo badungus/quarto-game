@@ -28,16 +28,10 @@ FetchContent_MakeAvailable(raylib tiny-process-library)
 # its own directory, and assets are loaded relative to it (../assets).
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-add_subdirectory(src/engine/thor)
-
-add_subdirectory(src/engine/odin)
-
-add_subdirectory(src/engine/baldur)
+# The search engine: baldur, thor and odin as presets of one source.
+add_subdirectory(src/engine/search)
 
 add_subdirectory(src/engine/optimal)
-
-# The merged search engine: baldur, thor and odin as presets of one source.
-add_subdirectory(src/engine/search)
 
 # Compile-time proof that the solver's board symmetries are complete and
 # correct (static_asserts only). Part of ALL, so a wrong table fails the build.
