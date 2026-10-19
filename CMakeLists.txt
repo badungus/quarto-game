@@ -36,6 +36,9 @@ add_subdirectory(src/engine/baldur)
 
 add_subdirectory(src/engine/optimal)
 
+# The merged search engine: baldur, thor and odin as presets of one source.
+add_subdirectory(src/engine/search)
+
 # Compile-time proof that the solver's board symmetries are complete and
 # correct (static_asserts only). Part of ALL, so a wrong table fails the build.
 add_library(syms_proof OBJECT proof/syms.cpp)

@@ -17,12 +17,11 @@ void Engine::go(SearchCallbacks callback) {
   if (search_thread_.joinable())
     search_thread_.join();
   search_.set_stop(false);
-  // The previous search has finished, so the rules can change. TT scores
-  // from the other rules would be wrong under these, so a change clears it.
-  if (squares_ != squares_win) {
-    tt_.clear();
-    squares_win = squares_;
-  }
+  // The previous search has finished, so the rules can change. The TT is
+  // cleared for every search, so a search never depends on the ones before
+  // it: the same go gives the same result, whatever was searched earlier.
+  tt_.clear();
+  squares_win = squares_;
   if (pending_seed_) {
     search_.set_seed(*pending_seed_);
     pending_seed_.reset();
