@@ -29,9 +29,8 @@ struct Result {
   int mate;            // mate_distance of value, 0 for a draw
 };
 
-// Plays only proven moves: from the opening book while the position is in
-// it, from a solve to the end of the game after that. There are no depth or
-// time limits; a solve takes as long as it takes, or until stop().
+// Plays only proven moves, from the book if the position is in it, else from a
+// solve to the end of the game. There are no depth or time limits.
 class Engine {
 private:
   Position pos_;

@@ -1,17 +1,7 @@
 #include "wincheck.hpp"
 #include "tables.hpp"
-#include <bit>
-#include <span>
 
 namespace quarto {
-
-namespace {
-std::span<const Bitboard> win_lines() {
-  if (squares_win)
-    return WIN_CONDITIONS;
-  return LINES;
-}
-} // namespace
 
 bool line_is_win(Bitboard line, Bitboard occ,
                  const std::array<Bitboard, 4> &prop) {
@@ -27,44 +17,23 @@ bool line_is_win(Bitboard line, Bitboard occ,
   return false; // full line, no shared property
 }
 
-bool move_wins(const Position &p, Cell cell) {
-
-  for (Bitboard line : win_lines()) {
-    if (((line >> cell) & 1) && line_is_win(line, p.occupied(), p.props()))
+bool move_wins(Cell cell, Bitboard occ, const std::array<Bitboard, 4> &prop) {
+  const auto &cell_lines = squares_win ? CELL_SQUARE_LINES : CELL_LINES;
+  for (Bitboard line : cell_lines[cell]) {
+    if (line_is_win(line, occ, prop))
       return true;
   }
   return false;
 }
 
-namespace {
-// COMPLETES[m]: every cell that is the only cell of some line outside the
-// cells m, so it completes a line whose other three cells are in m. One table
-// for the lines, one for the lines and 2x2 squares. Built at startup: too much
-// work for a constexpr.
-template <std::size_t N>
-std::array<Bitboard, 1 << 16>
-make_completes(const std::array<Bitboard, N> &lines) {
-  std::array<Bitboard, 1 << 16> t{};
-  for (unsigned m = 0; m < (1u << 16); ++m)
-    for (Bitboard line : lines) {
-      Bitboard missing = Bitboard(line & ~m);
-      if (std::popcount(missing) == 1)
-        t[m] |= missing;
-    }
-  return t;
+bool move_wins(const Position &p, Cell cell) {
+  return move_wins(cell, p.occupied(), p.props());
 }
-const std::array<Bitboard, 1 << 16> LINE_COMPLETES = make_completes(LINES);
-const std::array<Bitboard, 1 << 16> SQUARE_COMPLETES =
-    make_completes(WIN_CONDITIONS);
-} // namespace
 
 Bitboard winning_pieces(Position &pos) {
   const auto &completes = squares_win ? SQUARE_COMPLETES : LINE_COMPLETES;
   Bitboard empty = pos.empty_cells();
   Bitboard wins = 0;
-  // A line of three pieces sharing a property value, with its fourth cell
-  // empty, is won by any piece with that value. The cells holding each value
-  // are looked up for such a fourth cell.
   for (int i = 0; i < 4; ++i) {
     Bitboard ones = pos.props()[i];
     Bitboard zeros = Bitboard(pos.occupied() & ~ones);
@@ -74,32 +43,6 @@ Bitboard winning_pieces(Position &pos) {
       wins |= ~HAS_PROP[i];
   }
   return wins;
-}
-
-std::array<int, 16> cell_priors(const Position &pos) {
-  const auto &completes = squares_win ? SQUARE_COMPLETES : LINE_COMPLETES;
-  const Bitboard occ = pos.occupied();
-  const Bitboard empty = pos.empty_cells();
-  std::array<int, 16> prior{};
-  std::array<Bitboard, 4> same; // cells whose piece shares the hand's value
-  for (int i = 0; i < 4; ++i) {
-    Bitboard ones = pos.props()[i];
-    Bitboard zeros = Bitboard(occ & ~ones);
-    bool hand_has = pos.in_hand() >> i & 1;
-    same[i] = hand_has ? ones : zeros;
-    for (Bitboard b = Bitboard(completes[hand_has ? zeros : ones] & empty); b;
-         b &= b - 1)
-      prior[std::countr_zero(b)] += 2;
-  }
-  // The hand cannot win (it was a safe give), so every completing cell found
-  // with c added is new.
-  for (Bitboard e = empty; e; e &= e - 1) {
-    const int c = std::countr_zero(e);
-    for (Bitboard s : same)
-      prior[c] -= std::popcount(
-          Bitboard(completes[s | Bitboard{1} << c] & empty));
-  }
-  return prior;
 }
 
 } // namespace quarto

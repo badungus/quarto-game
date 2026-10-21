@@ -2,6 +2,7 @@
 add_library(optimal_core STATIC
     canonical.cpp
     engine.cpp
+    ordering.cpp
     position.cpp
     solve.cpp
     tt.cpp
@@ -11,9 +12,8 @@ add_library(optimal_core STATIC
 
 target_include_directories(optimal_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Tuned for the CPU it is built on: without it std::popcount, which negamax
-# calls at every node, is a library call instead of one instruction. 1.3x
-# faster on the full solve. PUBLIC, so main.cpp and the checks match.
+# Tuned for the CPU it is built on, so std::popcount is one instruction.
+# About 1.3 times faster on the full solve.
 target_compile_options(optimal_core PUBLIC -march=native)
 
 # Standalone engine process, spoken to over UQI on stdin/stdout; --full

@@ -2,21 +2,19 @@
 #include "tables.hpp"
 #include "types.hpp"
 #include <bit>
-#include <cstdint>
 
 namespace quarto {
 
 Cell best_cell(Bitboard &empty, std::array<Score, 16> &prior) {
-  Score best = INT16_MAX;
-  Cell best_cell = -1;
-  for (int i = 0; i < 16; ++i) {
-    if (prior[i] < best && empty & (Bitboard{1} << i)) {
-      best_cell = i;
-      best = prior[i];
+  Score best = std::countr_zero(empty);
+  for (Bitboard b = Bitboard(empty & (empty - 1)); b; b &= b - 1) {
+    const int i = std::countr_zero(b);
+    if (prior[i] < prior[best]) {
+      best = i;
     }
   }
-  empty &= ~(Bitboard{1} << best_cell);
-  return best_cell;
+  empty &= Bitboard(~(Bitboard{1} << best));
+  return best;
 };
 
 std::array<Score, 16> compute_prior(const Position &pos) {

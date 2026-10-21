@@ -1,6 +1,5 @@
 #include "uqi.hpp"
 #include "engine.hpp"
-#include "solve.hpp"
 #include "types.hpp"
 #include <algorithm>
 #include <array>
@@ -50,9 +49,8 @@ void uqi_loop(Engine &engine) {
       engine.set_position(parse_position(tokens[pos_idx + 1]));
     if (tokens[0] == "go") {
       engine.go([](const Result &r) {
-        // One info line, so the GUI shows the result: the depth is the rest
-        // of the game, the score WIN, 0 or -WIN for a win, draw or loss, and
-        // mate how soon, when the value has a distance.
+        // One info line so the GUI shows the result. The score is WIN, 0 or
+        // minus WIN for a win, draw or loss.
         const bool win = r.value > 0;
         const int score = r.value > 0 ? WIN : r.value < 0 ? -WIN : 0;
         std::osyncstream(std::cout)

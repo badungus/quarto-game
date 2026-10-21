@@ -1,5 +1,6 @@
 #include "solve.hpp"
 #include "canonical.hpp"
+#include "ordering.hpp"
 #include "position.hpp"
 #include "wincheck.hpp"
 
@@ -29,33 +30,10 @@ Move any_move(const Position &pos) {
       pos.available() ? Piece(std::countr_zero(pos.available())) : Piece(-1);
   return {cell, give};
 }
-
-// Removes and returns `first` from `set` if it is in it, otherwise the lowest
-// index.
-int pop_first(Bitboard &set, int first) {
-  int i = (first >= 0 && (set >> first & 1)) ? first : std::countr_zero(set);
-  set &= ~(Bitboard{1} << i);
-  return i;
-}
-
-// The empty cell with the lowest prior, lowest index on ties.
-int lowest_prior(Bitboard set, const std::array<int, 16> &prior) {
-  int best = std::countr_zero(set);
-  for (Bitboard b = Bitboard(set & (set - 1)); b; b &= b - 1) {
-    const int i = std::countr_zero(b);
-    if (prior[i] < prior[best])
-      best = i;
-  }
-  return best;
-}
 } // namespace
 
-// The jobs are the positions this many turns in (= pieces placed), and the
-// book holds every position above them. 6 because the engine solves what lies
-// beyond the book live, and that must be quick: in a sample of 400, positions
-// with 6 pieces placed took a median 0.04 s (max 0.2 s), against 0.45 s with
-// 5 and 4.8 s with 4. That makes 26.0 million jobs and a book of 1.86 million
-// positions.
+// The jobs are the positions with this many pieces placed.
+// The book holds every position before them.
 constexpr int SEARCH_START_PLY = 4;
 
 Position canonical_position(const CanonKey &key) {
@@ -75,37 +53,23 @@ Book read_book(const std::string &path) {
   char magic[sizeof BOOK_MAGIC];
   if (std::fread(magic, 1, sizeof magic, in) != sizeof magic ||
       !std::equal(magic, magic + sizeof magic, BOOK_MAGIC)) {
-    // The older text book.
-    std::rewind(in);
-    char line[128];
-    while (std::fgets(line, sizeof line, in)) {
-      unsigned long long cols;
-      unsigned occ;
-      int value, cell, give;
-      if (std::sscanf(line, "%llx %x %d %d %d", &cols, &occ, &value, &cell,
-                      &give) == 5 &&
-          cell >= 0 && cell < 16 && give >= 0 && give < 16) {
-        BookEntry e{Score(value), {}};
-        e.gives[cell] = Bitboard(1u << give);
-        book[{cols, Bitboard(occ)}] = e;
-      }
-    }
-  } else {
-    std::uint64_t cols;
-    Bitboard occ, cells;
-    Score value;
-    while (std::fread(&cols, sizeof cols, 1, in) == 1 &&
-           std::fread(&occ, sizeof occ, 1, in) == 1 &&
-           std::fread(&value, sizeof value, 1, in) == 1 &&
-           std::fread(&cells, sizeof cells, 1, in) == 1) {
-      BookEntry e{value, {}};
-      for (; cells; cells &= cells - 1)
-        if (std::fread(&e.gives[std::countr_zero(cells)], sizeof(Bitboard), 1,
-                       in) != 1)
-          break; // a cut-off last record: dropped
-      if (!cells)
-        book[{cols, occ}] = e;
-    }
+    std::fclose(in);
+    return book; // not a book file
+  }
+  std::uint64_t cols;
+  Bitboard occ, cells;
+  Score value;
+  while (std::fread(&cols, sizeof cols, 1, in) == 1 &&
+         std::fread(&occ, sizeof occ, 1, in) == 1 &&
+         std::fread(&value, sizeof value, 1, in) == 1 &&
+         std::fread(&cells, sizeof cells, 1, in) == 1) {
+    BookEntry e{value, {}};
+    for (; cells; cells &= cells - 1)
+      if (std::fread(&e.gives[std::countr_zero(cells)], sizeof(Bitboard), 1,
+                     in) != 1)
+        break; // a cut-off last record: dropped
+    if (!cells)
+      book[{cols, occ}] = e;
   }
   std::fclose(in);
   return book;
@@ -136,17 +100,16 @@ void write_book(const std::string &path, const Book &book) {
 }
 
 SolveResult Solver::full_solve(unsigned threads, const std::string &book_path) {
-  // Solved in the order they were found, each from the position as it was
-  // reached: neighbouring jobs then share most of their board, in the same
-  // frame, so their subtrees meet in the TT. On ply-4 jobs that is 1.3x
-  // faster than solving them by sorted key, from canonical positions.
+  // Jobs are solved in the order they were found, so jobs next to each other
+  // share more TT entries.
   const std::vector<Job> jobs = create_jobs_();
   // Job indices sorted by key, to find a job by binary search.
   std::vector<std::uint32_t> by_key(jobs.size());
   std::iota(by_key.begin(), by_key.end(), 0u);
-  std::sort(by_key.begin(), by_key.end(), [&](std::uint32_t a, std::uint32_t b) {
-    return jobs[a].key < jobs[b].key;
-  });
+  std::sort(by_key.begin(), by_key.end(),
+            [&](std::uint32_t a, std::uint32_t b) {
+              return jobs[a].key < jobs[b].key;
+            });
   // The index of the job with `key`, or jobs.size() if there is none.
   auto job_index = [&](const CanonKey &key) {
     auto it = std::lower_bound(
@@ -244,10 +207,9 @@ Score Solver::combine(int ply, Position &pos,
   const Canon c = canonicalize(pos);
   const CanonKey key = {c.cols, c.occ};
   if (ply == SEARCH_START_PLY)
-    return std::lower_bound(values.begin(), values.end(), key,
-                            [](const auto &v, const CanonKey &k) {
-                              return v.first < k;
-                            })
+    return std::lower_bound(
+               values.begin(), values.end(), key,
+               [](const auto &v, const CanonKey &k) { return v.first < k; })
         ->second;
   // Combined already, as this or an equivalent position.
   if (auto it = book.find(key); it != book.end())
@@ -307,16 +269,8 @@ std::vector<Solver::Job> Solver::create_jobs_() {
   return jobs;
 }
 
-// Adds every position SEARCH_START_PLY turns below `pos` to `jobs`,
-// once per group of equivalent positions. `seen` holds the key of
-// every position visited so far, at any ply: positions at different plies
-// have different piece counts, so they never share one.
-//
-// Only safe gives are followed, as in negamax: a give that lets the
-// opponent complete a line loses at once, so it is never the best move
-// unless every give does that, and then the position is a proven loss
-// that needs no job. So no position here has a piece in hand that can win,
-// and no placement needs a win check.
+// Adds every position SEARCH_START_PLY turns below pos to jobs, once for
+// each group of equivalent positions. Only safe gives are followed.
 void Solver::find_jobs(int ply, Position &pos,
                        std::unordered_set<CanonKey, CanonKeyHash> &seen,
                        std::vector<Job> &jobs) {
@@ -364,9 +318,7 @@ SolveResult Solver::solve(Position &pos) {
       return {SOLVED_DRAW, {Cell(std::countr_zero(pos.empty_cells())), -1}};
   }
 
-  // The result first, then for a win or loss its exact score (see
-  // solve.hpp). The windows are open on both sides of every score they can
-  // hold, so the score that comes back is exact.
+  // First only win, draw or loss, then the exact score of a win or loss.
   Move best = EMPTY_MOVE;
   Score value = search_root(pos, -1, 1, best);
   if (!distances_)
@@ -385,9 +337,8 @@ Score Solver::search_root(Position &pos, Score alpha, Score beta, Move &best) {
   if (pos.in_hand() >= 0)
     return negamax(pos, alpha, beta, &best);
 
-  // Nothing in hand: giving is the only move. Giving a piece that completes
-  // a line loses at once, so only safe pieces are searched. On the empty
-  // board every piece is equivalent to every other.
+  // Nothing in hand, so only safe gives are searched. On the empty board
+  // every piece is the same, so only one is searched.
   Bitboard safe = pos.occupied() == 0
                       ? Bitboard{1}
                       : Bitboard(pos.available() & ~winning_pieces(pos));
@@ -408,10 +359,8 @@ Score Solver::search_root(Position &pos, Score alpha, Score beta, Move &best) {
 }
 
 int mate_distance(Score value, const Position &pos) {
-  // A win that leaves n pieces on the board is placed at ply n - first,
-  // counted from 0 here, where `first` is the piece count after the first
-  // placement from here; even plies are the side to move's. With nothing in
-  // hand the side to move only gives, so the opponent places at ply 1.
+  // first is the number of pieces after the next placement. Even plies
+  // belong to the side to move.
   const int first =
       std::popcount(pos.occupied()) + (pos.in_hand() >= 0 ? 1 : 0);
   if (value >= PROVEN)
@@ -437,10 +386,7 @@ Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
   const bool canon = pieces <= canon_max_pieces_;
   Canon c{};
   TTKey key;
-  // The whole position, so TT matches are exact. The parent always gives
-  // a piece before calling, so there is always one in hand, and the
-  // available pieces are the ones neither placed nor in hand: neither
-  // needs any bits.
+  // The key holds the whole position, so TT matches are exact.
   if (canon) {
     // In canonical form the hand is piece 0.
     c = canonicalize(pos);
@@ -454,9 +400,8 @@ Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
   // A canonical entry is shared by all equivalent positions, so its move
   // is stored in the canonical frame and mapped back on probe.
   auto to_tt = [&](Move m) { return canon ? to_canonical(m, c) : m; };
-  // Every entry is searched to the end of the game, so depth never limits
-  // a cutoff. It is still stored, as the number of placements left, so
-  // the TT keeps the bigger subtrees when slots collide.
+  // Depth never limits a cutoff here. It is stored so the TT keeps the
+  // bigger subtrees.
   const auto depth = std::uint8_t(16 - pieces);
 
   const std::optional<TTHit> entry = tt_.probe(key);
@@ -478,49 +423,59 @@ Score Solver::negamax(Position &pos, Score alpha, Score beta, Move *best_out) {
   Move best_move = EMPTY_MOVE;
   bool any_safe = false; // some placement left a give that does not lose
 
-  // The TT move comes first: its cell before the other cells, and its give
-  // first on that cell. It may come from an equivalent position or, very
-  // rarely, a hash collision, so its cell is only taken if empty, and
-  // pop_first only takes its give if available and safe. The other cells
-  // follow by cell_priors, computed only once the TT cell has not cut; the
-  // pieces in index order. Unsafe gives are never searched: they would break
-  // the invariant that the piece in hand cannot win.
-  Bitboard empty = pos.empty_cells();
-  std::array<int, 16> prior;
-  bool have_prior = false;
-  while (empty) {
-    Cell cell;
-    if (entry_move.cell >= 0 && empty >> entry_move.cell & 1) {
-      cell = entry_move.cell;
-    } else {
-      if (!have_prior) {
-        prior = cell_priors(pos);
-        have_prior = true;
-      }
-      cell = Cell(lowest_prior(empty, prior));
+  auto search_give = [&](Cell cell, Piece piece) {
+    pos.give_piece(piece);
+    Score score = -negamax(pos, -beta, -alpha);
+    pos.undo_give_piece();
+    if (score > alpha) {
+      alpha = score;
+      best_move = {cell, piece};
     }
-    empty &= Bitboard(~(Bitboard{1} << cell));
+    return alpha >= beta;
+  };
+  // The return value of a node that was cut off.
+  auto cutoff = [&] {
+    if (!stopped())
+      tt_.store(key, alpha, depth, to_tt(best_move), Bound::Lower);
+    if (best_out)
+      *best_out = best_move;
+    return alpha;
+  };
+
+  // The TT move alone first. Unsafe gives are never searched.
+  const bool tt_move_legal =
+      entry_move.cell >= 0 && pos.empty_cells() >> entry_move.cell & 1 &&
+      entry_move.give >= 0 && pos.available() >> entry_move.give & 1;
+  if (tt_move_legal) {
+    pos.place_piece(entry_move.cell);
+    if ((pos.available() & ~winning_pieces(pos)) >> entry_move.give & 1) {
+      any_safe = true;
+      if (search_give(entry_move.cell, entry_move.give)) {
+        pos.undo_place_piece();
+        return cutoff();
+      }
+    }
+    pos.undo_place_piece();
+  }
+
+  // Then every cell by prior, with the gives in index order.
+  Bitboard empty = pos.empty_cells();
+  std::array<Score, 16> prior = compute_prior(pos);
+  while (empty) {
+    Cell cell = best_cell(empty, prior);
     pos.place_piece(cell);
     Bitboard avail = pos.available() & ~winning_pieces(pos);
     if (avail)
       any_safe = true;
+    // The TT move was searched already.
+    if (tt_move_legal && entry_move.cell == cell)
+      avail &= Bitboard(~(Bitboard{1} << entry_move.give));
     while (avail) {
-      Piece give = Piece(
-          pop_first(avail, cell == entry_move.cell ? entry_move.give : -1));
-      pos.give_piece(give);
-      Score score = -negamax(pos, -beta, -alpha);
-      pos.undo_give_piece();
-      if (score > alpha) {
-        alpha = score;
-        best_move = {cell, give};
-      }
-      if (alpha >= beta) {
+      Piece piece = std::countr_zero(avail);
+      avail &= (avail - 1);
+      if (search_give(cell, piece)) {
         pos.undo_place_piece();
-        if (!stopped())
-          tt_.store(key, alpha, depth, to_tt(best_move), Bound::Lower);
-        if (best_out)
-          *best_out = best_move;
-        return alpha;
+        return cutoff();
       }
     }
     pos.undo_place_piece();

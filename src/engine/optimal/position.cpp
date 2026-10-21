@@ -3,15 +3,15 @@
 
 namespace quarto {
 
-void Position::load(Bitboard occ, std::array<Bitboard, 4> prop,
-                    Piece hand) {
+void Position::load(Bitboard occ, std::array<Bitboard, 4> prop, Piece hand) {
   occ_ = occ;
   prop_ = prop;
   hand_ = hand;
   top_ = 0;
   avail_ = 0xFFFF;
   if (hand_ >= 0) {
-    avail_ &= ~(Bitboard{1} << hand_); // the piece in hand cannot be given again
+    avail_ &=
+        ~(Bitboard{1} << hand_); // the piece in hand cannot be given again
   }
 
   while (occ) {
@@ -65,9 +65,8 @@ void Position::undo_give_piece() {
   if (hand_ >= 0) {
     avail_ |= Bitboard{1} << hand_;
   }
-
   // At the opening the root gives without placing first, so there is no
-  // history entry to restore from - the hand simply goes back to empty.
+  // history entry to restore from, the hand simply goes back to empty.
   Piece prev = (top_ == 0) ? Piece(-1) : history_[top_ - 1].hand;
   hand_ = prev;
 }

@@ -1,29 +1,5 @@
-// optimal: an engine that only plays proven moves.
-//
-//   optimal                                    UQI engine, as the GUI starts it
-//   optimal --solve POSITION [--tt MB] [--no-distance]
-//                                              solve one position
-//   optimal --full [--threads N] [--tt MB] [--no-distance]
-//                                              solve the game, write the book
-//
-// The engine and --full use book.bin in the source directory of optimal (set
-// by CMake, so it is versioned and survives a clean build), or
-// square_book.bin with --squares. The engine plays from it while the
-// position is in it, picking at random among the best moves, and solves to
-// the end of the game after that. --full solves the empty board on N threads
-// (default: one per hardware thread) and writes every position of the first
-// six turns to the book, with all its best moves. It takes hours; finished
-// jobs are saved to book.bin.jobs as they finish, so an interrupted run picks
-// up where it stopped.
-//
-// --solve proves whether the side to move wins, draws or loses in POSITION
-// (UQI format, e.g. ChSfchsf../ChSF..chSF/..../...chsF|chSF) on one thread,
-// without the book, and prints how soon (mate, as in UQI), a move achieving
-// it, the nodes and the time.
-// --tt is the TT size in MB for both (default 8192).
-// --no-distance proves only win, draw or loss, not how soon, for both. That
-// skips the second search of every win and loss (see solve.hpp), so it is
-// faster; a book written with it has no mate distances.
+// An engine that only plays proven moves. No arguments starts the UQI loop,
+// --solve solves one position and --full solves the game and writes the book.
 
 #include "engine.hpp"
 #include "position.hpp"
@@ -35,7 +11,6 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <filesystem>
 #include <string>
 #include <thread>
 
@@ -81,13 +56,7 @@ int main(int argc, char **argv) {
                                : OPTIMAL_BOOK_PATH; // set by CMake
 
   if (!full && position.empty()) {
-    // Until --full has written the book, the older text book next to it
-    // (book.txt for book.bin) stands in.
-    std::string engine_book = book;
-    if (!std::filesystem::exists(engine_book))
-      engine_book =
-          std::filesystem::path(book).replace_extension(".txt").string();
-    quarto::Engine engine(engine_book);
+    quarto::Engine engine(book);
     quarto::uqi_loop(engine);
     return 0;
   }

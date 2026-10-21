@@ -22,10 +22,7 @@ struct Undo {
 
 enum class Bound : uint8_t { Exact, Lower, Upper };
 
-// A position as the TT sees it: 64 bits plus up to 20 more in `extra`. The
-// two together are the whole position, and the TT compares both, so a TT
-// match is always the same position. The TT only holds positions with a
-// piece in hand, so keys need not say whether there is one.
+// position to compare in case multiple positions use the same tt index
 struct TTKey {
   std::uint64_t bits;
   std::uint32_t extra;
@@ -40,6 +37,7 @@ struct TTHit {
 };
 
 constexpr Score WIN = 10000;
+constexpr Score INF = 32000;
 constexpr Move EMPTY_MOVE = {-1, -1};
 
 } // namespace quarto

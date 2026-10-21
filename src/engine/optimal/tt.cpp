@@ -24,9 +24,8 @@ std::uint8_t depth_of(std::uint64_t data) {
   return std::uint8_t(data >> DEPTH_SHIFT);
 }
 
-// Entry words are read and written by several threads at once. Relaxed
-// atomics make that defined behaviour and cost nothing on x86; the XOR check
-// catches an entry whose two words come from different stores.
+// Several threads read and write entries at once. Relaxed atomics make that
+// safe and cost nothing on x86.
 std::uint64_t load(const std::uint64_t &word) {
   return std::atomic_ref(const_cast<std::uint64_t &>(word))
       .load(std::memory_order_relaxed);
@@ -36,9 +35,6 @@ void save(std::uint64_t &word, std::uint64_t value) {
 }
 } // namespace
 
-// The key's entry. The key is mixed so similar positions spread over the
-// table, and the mix is scaled to [0, size) by a multiply and shift, which
-// works for any table size.
 std::size_t TranspositionTable::index(TTKey key) const {
   Key state = key.bits;
   state = splitmix64(state) ^ key.extra;
