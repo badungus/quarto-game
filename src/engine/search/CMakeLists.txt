@@ -1,11 +1,3 @@
-# One search engine, built once per preset. A preset is a set of features
-# (see features.hpp), each turned on by a compile definition; every preset
-# needs its own compile of the sources, so each gets its own core library.
-#
-#   add_search_engine(<name> [FEATURE ...])
-#
-# builds <name>_core and the executable <name>, spoken to over UQI on
-# stdin/stdout. FEATURE is a name from features.hpp, e.g. PIECE_COUNT_SCORE.
 function(add_search_engine name)
     add_library(${name}_core STATIC
         ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/canonical.cpp
@@ -36,3 +28,9 @@ add_search_engine(odin
     PIECE_COUNT_SCORE WIN_CHECK_AT_ENTRY THREAT_EVAL NARROW_ROOT_WINDOW
     COMPLETES_TABLE SAFE_GIVES TT TT_MOVE CANONICAL ROOT_BEST_FIRST
     THREAT_ORDERING)
+
+# Ablation variants: odin with features switched off. Features that need a
+# switched-off one (see features.hpp) go with it.
+add_search_engine(odin_no_tt
+    PIECE_COUNT_SCORE WIN_CHECK_AT_ENTRY THREAT_EVAL NARROW_ROOT_WINDOW
+    COMPLETES_TABLE SAFE_GIVES ROOT_BEST_FIRST THREAT_ORDERING)

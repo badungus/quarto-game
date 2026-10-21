@@ -1,6 +1,6 @@
 #pragma once
-#include "position.hpp"
 #include "features.hpp"
+#include "position.hpp"
 #include "search.hpp"
 #include "tt.hpp"
 #include "types.hpp"
@@ -18,7 +18,7 @@ const int DEFAULT_MOVETIME = INT_MAX;
 const bool DEFAULT_INFINITE = false;
 const bool DEFAULT_SQUARES = false; // normal play: only lines win
 const int DEFAULT_DEPTH = 16;
-// TT size in MB; without the TT feature the table is not used, so it gets the
+// TT size in MB, without the TT feature the table is not used, so it gets the
 // smallest size, one entry.
 const int DEFAULT_TT_SIZE = TT ? 2048 : 0;
 const std::tuple<Bitboard, std::array<Bitboard, 4>, Piece> DEFAULT_POSITION = {
@@ -33,7 +33,6 @@ struct SearchLimits {
 struct SearchCallbacks {
   InfoFn on_info;
   std::function<void(Result)> on_bestmove;
-  // Called before the search starts when the seed has not been reported yet.
   std::function<void(std::uint64_t)> on_seed;
 };
 
@@ -45,6 +44,8 @@ private:
   bool squares_ = DEFAULT_SQUARES;
   // Applied in go(), once the previous search thread has finished, so the
   // generator is never reseeded while the search thread uses it.
+  // Applied once the previous search thread has finished, so the reseed never
+  // happens during the search
   std::optional<std::uint64_t> pending_seed_;
   // The startup seed counts as new, so the first go reports it too.
   bool seed_reported_ = false;

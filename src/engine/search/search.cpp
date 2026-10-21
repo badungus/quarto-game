@@ -4,37 +4,21 @@
 #include "ordering.hpp"
 #include "wincheck.hpp"
 
-#include <algorithm>
 #include <bit>
 #include <chrono>
 
 namespace quarto {
 
 namespace {
-// A win scores WIN - n with n the pieces on the board after it (see
-// win_score), and a full board holds 16, so every proven score is at least
-// this far from 0. Non-proven scores are 0. Used with PIECE_COUNT_SCORE.
+// minimum score a win can have
 constexpr Score PROVEN = WIN - 16;
 
-// CANONICAL: positions with at most this many pieces on the board are keyed by
-// their canonical form, so equivalent positions share a TT entry; deeper ones
-// by the position as it is, since canonicalize costs a few hundred operations
-// and transpositions through symmetry get rarer and cheaper with depth. The
-// piece count decides, so a position always gets the same kind of key. Tune by
-// benchmark.
+// up to this many pieces on the board, the tt stores in canonical form.
+// positions with many pieces on the board dont have many symmetries, so its not
+// worth calulating the canonical form
 constexpr int CANON_MAX_PIECES = 10;
 
-// Turns a root score from an iteration of `depth` into SearchInfo::mate.
-//
-// PIECE_COUNT_SCORE: a win that leaves n pieces on the board is placed at ply
-// n - first, counted from 0 at the root, where `first` is the piece count after
-// the root's first placement. At the opening the root only gives, so the
-// opponent places piece 1 at ply 1.
-//
-// Otherwise: a win found with `d` depth left scores WIN + d and happens at ply
-// depth - d.
-//
-// Even plies are the root side's.
+// turns a win into a score, based on how many pieces are on the board
 int mate_distance(Score score, int depth, const Position &pos) {
   if constexpr (PIECE_COUNT_SCORE) {
     int first = std::popcount(pos.occupied()) + (pos.in_hand() >= 0 ? 1 : 0);
@@ -51,18 +35,14 @@ int mate_distance(Score score, int depth, const Position &pos) {
   return 0;
 }
 
-// Beta for the search of a root move's reply, given the root's best score so
-// far: the root window is (best - 1, INF) with NARROW_ROOT_WINDOW, else
-// (-INF, INF), and the reply sees it negated. Raising the root's alpha to best
-// instead would make a tie indistinguishable from a worse move, and ties are
-// all kept for the random pick.
+// updates beta if NARROW_ROOT_WINDOW is enabled
 Score reply_beta(Score best) {
   if constexpr (NARROW_ROOT_WINDOW)
     return Score(1 - best);
   return INF;
 }
 
-// Removes and returns `first` from `set` if it is in it, otherwise the lowest
+// Removes and returns first from set if it is in it, otherwise the lowest
 // index.
 int pop_first(Bitboard &set, int first) {
   int i = (first >= 0 && (set >> first & 1)) ? first : std::countr_zero(set);
@@ -70,25 +50,20 @@ int pop_first(Bitboard &set, int first) {
   return i;
 }
 
-// The pieces searched as gives after a placement: the safe ones with
-// SAFE_GIVES, else every available one.
+// The pieces searched as gives after a placement
 Bitboard gives(Position &pos) {
   if constexpr (SAFE_GIVES)
     return pos.available() & ~winning_pieces(pos);
   return pos.available();
 }
 
-// The score of a lost position: every placement + give lets the opponent win
-// with the next placement, one more piece than a win from here would place.
+// The score of a lost position
 Score loss(const Position &pos) { return Score(-(win_score(pos) - 1)); }
 
-// The score of a win by the piece in hand, placed from `pos` with `depth`
-// plies left.
+// The score of a win by the piece in hand
 Score win(const Position &pos, int depth) {
   if constexpr (PIECE_COUNT_SCORE)
     return win_score(pos);
-  // depth counts down from the root, so a win found with more depth left is
-  // a faster win and scores higher.
   return Score(WIN + depth);
 }
 } // namespace
@@ -99,20 +74,14 @@ Result Search::search(Position &pos, int depth, InfoFn cb) {
   if constexpr (TT)
     tt_.new_search();
 
-  // negamax_root never returns an empty list, so one pick per iteration is
-  // always valid. The same pick is reported and returned.
+  // negamax_root never returns an empty list
   Result best{0, {-1, -1}};
   for (int i = 1; i <= depth && !stop_; ++i) {
-    // ROOT_BEST_FIRST: the previous iteration's pick first.
+    // the previous iteration's pick first.
     std::vector<Result> best_moves =
         negamax_root(pos, i, ROOT_BEST_FIRST ? best.move : EMPTY_MOVE);
     if (!stop_) {
-      // Plain modulo instead of uniform_int_distribution: the distribution's
-      // output differs between standard libraries, this does not. The bias is
-      // negligible for at most 240 moves.
       best = best_moves[gen_() % best_moves.size()]; // one of the best moves
-      // A proven result cannot change with more depth. The score is reported
-      // as plain +-WIN; the distance goes into `mate`.
       int mate = mate_distance(best.score, i, pos);
       if (mate != 0) {
         stop_ = true;
@@ -125,8 +94,7 @@ Result Search::search(Position &pos, int depth, InfoFn cb) {
   return best;
 }
 
-std::vector<Result> Search::negamax_root(Position &pos, int depth,
-                                         Move first) {
+std::vector<Result> Search::negamax_root(Position &pos, int depth, Move first) {
   ++nodes_;
 
   if ((nodes_ & 4095) == 0) {
@@ -179,8 +147,7 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth,
       return {{0, {cell, -1}}};
     }
     // Score every piece we could hand over after this placement and keep the
-    // best {cell, piece} pairs. The window keeps every tie exact (see
-    // reply_beta).
+    // best. The window keeps every tie exact
     if (!stop_) {
       Bitboard avail = gives(pos);
       while (avail) {
@@ -201,15 +168,15 @@ std::vector<Result> Search::negamax_root(Position &pos, int depth,
     pos.undo_place_piece();
   }
 
-  // SAFE_GIVES: no placement leaves a safe give, so every move loses at once
-  // and all of them tie at that loss (none were searched).
+  // no placement leaves a safe give, so every move loses at once
+  // and all of them tie at that loss
   if constexpr (SAFE_GIVES)
     if (!any_safe && !stop_)
       for (Bitboard e = pos.empty_cells(); e; e &= (e - 1))
         for (Bitboard a = pos.available(); a; a &= (a - 1))
-          best_moves.push_back({loss(pos),
-                                {Cell(std::countr_zero(e)),
-                                 Piece(std::countr_zero(a))}});
+          best_moves.push_back(
+              {loss(pos),
+               {Cell(std::countr_zero(e)), Piece(std::countr_zero(a))}});
 
   if (best_moves.empty())
     return {{0, {-1, -1}}}; // no legal move or search stopped
@@ -228,26 +195,16 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
   }
 
   // Checked before the horizon too: a win is final at any depth. With
-  // SAFE_GIVES the parent only gives safe pieces, so it cannot happen.
   if constexpr (WIN_CHECK_AT_ENTRY && !SAFE_GIVES)
     if (hand_wins(pos))
       return win(pos, depth);
 
   TTKey key{};
   Move entry_move = EMPTY_MOVE; // the TT's best move for this position
-  // CANONICAL: whether this position is keyed by its canonical form, and the
-  // transformation to it.
   bool canon = false;
   Canon c{};
-  // A canonical entry is shared by all equivalent positions, so its move is
-  // stored in the canonical frame and mapped back on probe. Storing real
-  // moves there would order the wrong move first in every other equivalent
-  // position: still correct, but much slower.
   auto to_tt = [&](Move m) { return canon ? to_canonical(m, c) : m; };
   if constexpr (TT) {
-    // The whole position, so TT matches are exact. The parent always gives a
-    // piece before calling, so there is always one in hand, and the available
-    // pieces are the ones neither placed nor in hand: neither needs any bits.
     if constexpr (CANONICAL)
       canon = std::popcount(pos.occupied()) <= CANON_MAX_PIECES;
     if (canon) {
@@ -266,8 +223,7 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
       entry_move = canon ? from_canonical(entry->move, c) : entry->move;
     if (entry) {
       // A proven win as a lower bound or a proven loss as an upper bound is
-      // the true game result, so it holds at any depth; the opposite bounds
-      // do not.
+      // the true game result, so it holds at any depth
       bool proven = (entry->bound != Bound::Upper && entry->score >= PROVEN) ||
                     (entry->bound != Bound::Lower && entry->score <= -PROVEN);
       if (entry->depth >= depth || proven) {
@@ -292,10 +248,8 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
 
   Score alpha_orig = alpha;
   Move best_move = EMPTY_MOVE; // the move that raised alpha, for the TT
-  bool any_safe = false; // some placement left a give to search
+  bool any_safe = false;       // some placement left a give to search
 
-  // Gives `piece` once the placement on `cell` is made, and searches it. True
-  // when it cuts this node off.
   auto search_give = [&](Cell cell, Piece piece) {
     pos.give_piece(piece);
     Score score = -negamax(pos, depth - 1, -beta, -alpha);
@@ -314,11 +268,6 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     return alpha;
   };
 
-  // TT_MOVE: the TT move, before anything else. A hash collision can hand
-  // over a move from another position, so it is checked first: the cell must
-  // be empty and the piece available. The give is searched only if it is also
-  // safe after the placement: an unsafe give would break the invariant that
-  // the piece in hand cannot win.
   bool tt_move_legal = false;
   if constexpr (TT_MOVE) {
     tt_move_legal =
@@ -377,8 +326,7 @@ Score Search::negamax(Position &pos, int depth, Score alpha, Score beta) {
     }
     pos.undo_place_piece();
   }
-  // SAFE_GIVES: every give, after every placement, lets the opponent win with
-  // the next piece. An exact loss, independent of depth.
+
   if constexpr (SAFE_GIVES)
     if (!any_safe) {
       if constexpr (TT)

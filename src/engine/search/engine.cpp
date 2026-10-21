@@ -18,9 +18,8 @@ void Engine::go(SearchCallbacks callback) {
   if (search_thread_.joinable())
     search_thread_.join();
   search_.set_stop(false);
-  // The previous search has finished, so the rules can change. The TT is
-  // cleared for every search, so a search never depends on the ones before
-  // it: the same go gives the same result, whatever was searched earlier.
+  // Transposition Table is cleared, so earlier searches have no impact on the
+  // following ones
   if constexpr (TT)
     tt_.clear();
   squares_win = squares_;
@@ -38,8 +37,7 @@ void Engine::go(SearchCallbacks callback) {
   search_.set_movetime(max_time);
   int depth = std::min(depth_, std::popcount(pos_.empty_cells()));
 
-  // The thread searches its own copy of the position, so the engine can be
-  // reset below and reconfigured while the search is still running.
+  // the search has its own copy so input cant modify it while searching
   search_thread_ = std::jthread([this, pos = pos_, depth, callback]() mutable {
     Result best_result = search_.search(pos, depth, callback.on_info);
     callback.on_bestmove(best_result);

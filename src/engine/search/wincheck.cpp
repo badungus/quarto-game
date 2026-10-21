@@ -50,9 +50,6 @@ Bitboard winning_pieces(Position &pos) {
   const auto &completes = squares_win ? SQUARE_COMPLETES : LINE_COMPLETES;
   Bitboard empty = pos.empty_cells();
   Bitboard wins = 0;
-  // A line of three pieces sharing a property value, with its fourth cell
-  // empty, is won by any piece with that value. The cells holding each value
-  // are looked up for such a fourth cell.
   for (int i = 0; i < 4; ++i) {
     Bitboard ones = pos.props()[i];
     Bitboard zeros = Bitboard(pos.occupied() & ~ones);
@@ -70,8 +67,7 @@ Score win_score(const Position &pos) {
 
 Score eval(Position &pos) {
   if constexpr (THREAT_EVAL) {
-    // Lost if every placement + give lets the opponent win at once. That win
-    // puts one more piece on the board than a win from here would.
+    // Lost if every placement and give lets the opponent win
     Bitboard empty = pos.empty_cells();
     while (empty) {
       Cell cell = std::countr_zero(empty);

@@ -66,7 +66,7 @@ void Position::undo_give_piece() {
     avail_ |= Bitboard{1} << hand_;
   }
   // At the opening the root gives without placing first, so there is no
-  // history entry to restore from - the hand simply goes back to empty.
+  // history entry to restore from, the hand simply goes back to empty.
   Piece prev = (top_ == 0) ? Piece(-1) : history_[top_ - 1].hand;
   hand_ = prev;
 }

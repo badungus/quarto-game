@@ -6,9 +6,7 @@
 
 namespace quarto {
 
-namespace {
-// SYM_BITS[s].lo[b] is the low byte b with every bit moved by SYMS[s]; .hi the
-// same for the high byte.
+// two arrays instead of one for faster lookup and writing
 struct SymBits {
   std::array<Bitboard, 256> lo{};
   std::array<Bitboard, 256> hi{};
@@ -32,7 +30,7 @@ constexpr Bitboard apply_sym(int s, Bitboard b) {
   return Bitboard(SYM_BITS[s].lo[b & 0xFF] | SYM_BITS[s].hi[b >> 8]);
 }
 
-// Sorts q ascending and carries the original property index along.
+// Sorts q ascending and carries the original property index along
 void sort4(std::array<Bitboard, 4> &q, std::array<std::uint8_t, 4> &idx) {
   auto cmp_swap = [&](int i, int j) {
     if (q[j] < q[i]) {
@@ -48,10 +46,7 @@ void sort4(std::array<Bitboard, 4> &q, std::array<std::uint8_t, 4> &idx) {
   cmp_swap(1, 2);
 }
 
-// The symmetries with the smallest permuted occupancy, as a bit mask. The
-// canonical form has the smallest occupancy first, so only these can reach
-// it. Sets occ to that occupancy. Starts from the identity, SYMS[0]: a full
-// board is 0xFFFF, so no Bitboard value is free to serve as "none yet".
+// The the symmetries with the smallest permuted occ as a bit mask
 std::uint32_t occ_candidates(const Position &pos, Bitboard &occ) {
   const std::uint32_t allowed = squares_win ? SQUARE_SYMS : ~0u;
   occ = pos.occupied();
@@ -60,7 +55,7 @@ std::uint32_t occ_candidates(const Position &pos, Bitboard &occ) {
     if (!((allowed >> s) & 1))
       continue;
     Bitboard o = apply_sym(s, pos.occupied());
-    if (o < occ) {
+    if (o < occ) { // smallest occ permutation
       occ = o;
       candidates = 1u << s;
     } else if (o == occ) {
@@ -70,14 +65,8 @@ std::uint32_t occ_candidates(const Position &pos, Bitboard &occ) {
   return candidates;
 }
 
-// The position under board symmetry s with the relabeling normalised. `occ`
-// is the occupancy under s.
-//
-// Inverting property i turns its column p into p ^ occ. With a piece in hand
-// the inversions are chosen to turn it into piece 0; with none, each column
-// takes whichever of p and p ^ occ is smaller. Either way the choice no longer
-// depends on how the properties were inverted. Reordering properties reorders
-// the columns, so sorting them removes the order as well.
+// The piece in hand is always transformed to 0
+// If there is no hand, it takes the smaller on of p and the inversion of p
 Canon normalise(const Position &pos, int s, Bitboard occ) {
   const Piece hand = pos.in_hand();
   Canon n{0, occ, hand >= 0, std::uint8_t(s), {0, 1, 2, 3}, 0};
@@ -120,8 +109,6 @@ Piece unrelabel(Piece r, const std::array<std::uint8_t, 4> &order,
   }
   return p;
 }
-
-} // namespace
 
 Canon canonicalize(const Position &pos) {
   Bitboard occ;

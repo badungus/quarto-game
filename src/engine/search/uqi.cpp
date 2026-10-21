@@ -72,8 +72,7 @@ void uqi_loop(Engine &engine) {
       }
     }
 
-    // "seed N" fixes the tie-break generator; it stays in effect for every
-    // following search until the next seed.
+    // determines what random move gets chosen if multile moves score the same
     size_t seed_idx =
         std::find(tokens.begin(), tokens.end(), "seed") - tokens.begin();
     if (seed_idx < tokens.size()) {
@@ -91,7 +90,7 @@ void uqi_loop(Engine &engine) {
       engine.set_infinite(true);
     }
 
-    // "squares": 2x2 squares win too, for this search only.
+    // 2x2 squares win as well
     if (std::find(tokens.begin(), tokens.end(), "squares") != tokens.end()) {
       engine.set_squares(true);
     }
@@ -110,30 +109,28 @@ void uqi_loop(Engine &engine) {
       }
     }
     if (tokens[0] == "go") {
-      engine.go({.on_info =
-                     [](const SearchInfo &i) {
-                       std::osyncstream(std::cout)
-                           << "info depth " << i.depth << " score "
-                           << i.result.score
-                           << (i.mate != 0 ? " mate " + std::to_string(i.mate)
-                                           : "")
-                           << " nodes " << i.nodes << " move "
-                           << format_move(i.result.move,
-                                          (i.result.score == WIN))
-                           << std::endl;
-                     },
-                 .on_bestmove =
-                     [](const Result result) {
-                       std::osyncstream(std::cout)
-                           << "bestmove "
-                           << format_move(result.move, (result.score == WIN))
-                           << std::endl;
-                     },
-                 .on_seed =
-                     [](std::uint64_t seed) {
-                       std::osyncstream(std::cout)
-                           << "info seed " << seed << std::endl;
-                     }});
+      engine.go(
+          {.on_info =
+               [](const SearchInfo &i) {
+                 std::osyncstream(std::cout)
+                     << "info depth " << i.depth << " score " << i.result.score
+                     << (i.mate != 0 ? " mate " + std::to_string(i.mate) : "")
+                     << " nodes " << i.nodes << " move "
+                     << format_move(i.result.move, (i.result.score == WIN))
+                     << std::endl;
+               },
+           .on_bestmove =
+               [](const Result result) {
+                 std::osyncstream(std::cout)
+                     << "bestmove "
+                     << format_move(result.move, (result.score == WIN))
+                     << std::endl;
+               },
+           .on_seed =
+               [](std::uint64_t seed) {
+                 std::osyncstream(std::cout)
+                     << "info seed " << seed << std::endl;
+               }});
     }
 
     if (tokens[0] == "stop") {

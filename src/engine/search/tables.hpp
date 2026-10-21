@@ -22,13 +22,9 @@ inline constexpr std::array<Bitboard, 19> WIN_CONDITIONS = {
     0x0033, 0x0066, 0x00CC, 0x0330, 0x0660, // 2x2 squares
     0x0CC0, 0x3300, 0x6600, 0xCC00};        // 2x2 squares
 
-// True when 2x2 squares win too ("go ... squares"). Engine::go sets it before
-// each search starts, and it stays fixed while the search runs.
+// True when 2x2 squares win too
 inline bool squares_win = false;
 
-// The lines through one cell: 2 normally, 3 on a diagonal, and up to 4 more
-// 2x2 squares when squares win. Fixed capacity so the whole table can be
-// constexpr - a std::vector cannot outlive constant evaluation.
 struct CellLines {
   std::array<Bitboard, 7> lines{};
   int count = 0;
@@ -58,9 +54,7 @@ inline constexpr std::array<CellLines, 16> CELL_LINES = make_cell_lines(LINES);
 inline constexpr std::array<CellLines, 16> CELL_SQUARE_LINES =
     make_cell_lines(WIN_CONDITIONS);
 
-// splitmix64: the standard seeding PRNG. One multiply-xorshift finalizer over a
-// counter, which is enough here - the TT only needs its index well spread, not
-// cryptographic.
+// splitmix64 for good distribution
 constexpr Key splitmix64(Key &state) {
   state += 0x9E3779B97F4A7C15ULL;
   Key z = state;
@@ -85,10 +79,8 @@ constexpr std::array<Bitboard, 4> pieces_with_prop() {
 // HAS_PROP[i]: the pieces with property i set.
 inline constexpr std::array<Bitboard, 4> HAS_PROP = pieces_with_prop();
 
-// COMPLETES[m]: every cell that is the only cell of some line outside the
-// cells m, so it completes a line whose other three cells are in m. One table
-// for the lines, one for the lines and 2x2 squares. Built at startup: too much
-// work for a constexpr. Used with COMPLETES_TABLE.
+// precompute the missing pieces for all possibilities to get 4 in a win
+// condition
 template <std::size_t N>
 std::array<Bitboard, 1 << 16>
 make_completes(const std::array<Bitboard, N> &lines) {
