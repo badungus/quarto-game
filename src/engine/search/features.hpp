@@ -72,8 +72,11 @@ static_assert(!TT || PIECE_COUNT_SCORE, "TT needs PIECE_COUNT_SCORE");
 
 // Searching the TT move firste
 constexpr bool TT_MOVE = Q_TT_MOVE;
-static_assert(!TT_MOVE || (TT && SAFE_GIVES),
-              "TT_MOVE needs TT and SAFE_GIVES");
+// The TT move is placed without a win check, so the piece in hand must not be
+// able to win: guaranteed by SAFE_GIVES (the parent only gives safe pieces) or
+// by WIN_CHECK_AT_ENTRY (the node returned already if it could).
+static_assert(!TT_MOVE || (TT && (SAFE_GIVES || WIN_CHECK_AT_ENTRY)),
+              "TT_MOVE needs TT and SAFE_GIVES or WIN_CHECK_AT_ENTRY");
 
 // Storing equivalent positions using the same canonical form
 constexpr bool CANONICAL = Q_CANONICAL;
