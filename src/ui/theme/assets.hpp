@@ -5,9 +5,7 @@
 #include <raylib.h>
 
 struct Assets {
-  Texture2D pool_button_background;
-  Texture2D pool_button_hover;
-  Texture2D pool_button_armed;
+  Texture2D panel; // white fill, drawn with a tint from colors.hpp
   std::array<Texture2D, 16> pool_button_images;
   Texture2D winning_cell;
   Texture2D board_background;

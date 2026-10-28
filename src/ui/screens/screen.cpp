@@ -1,6 +1,7 @@
 // screen.cpp - Implements Screen switching.
 #include "screen.hpp"
 #include "button.hpp"
+#include "colors.hpp"
 #include "layout.hpp"
 #include "nav.hpp"
 #include "raylib.h"
@@ -12,8 +13,7 @@ Screen::Screen(const Assets &assets)
       engine_match_(game, match_controller, match_config, assets),
       home_button_(Rectangle{HOME_BUTTON_X(), HOME_BUTTON_Y, HOME_BUTTON_WIDTH,
                              HOME_BUTTON_HEIGHT},
-                   assets.pool_button_background, assets.pool_button_hover,
-                   assets.pool_button_armed, "QUARTO!", 2.0f) {};
+                   assets.panel, "QUARTO!", 2.0f) {};
 
 void Screen::update(const Input &in) {
   ScreenId screen = current_;
@@ -76,7 +76,7 @@ void Screen::draw() {
 
 void Screen::draw_navbar() {
   float s = ui_scale();
-  Texture2D navbar = assets_.pool_button_background;
+  Texture2D navbar = assets_.panel;
 
   NPatchInfo patch = {{0, 0, (float)navbar.width, (float)navbar.height},
                       BORDER,
@@ -86,6 +86,6 @@ void Screen::draw_navbar() {
                       NPATCH_NINE_PATCH};
   DrawTextureNPatch(navbar, patch,
                     {0, 0, canvas_width() * s, NAVBAR_HEIGHT * s}, {0, 0},
-                    0.0f, WHITE);
+                    0.0f, colors::PANEL);
   home_button_.draw();
 };

@@ -1,6 +1,7 @@
 // results_screen.cpp - Implements EngineMatch.
 #include "results_screen.hpp"
 #include "button.hpp"
+#include "colors.hpp"
 #include "command.hpp"
 #include "game_state.hpp"
 #include "layout.hpp"
@@ -34,31 +35,25 @@ EngineMatch::EngineMatch(Game &game, MatchController &match_controller,
       match_config_(match_config), assets_(assets),
       start_({MATCH_COLUMN_1_X, MATCH_START_Y, 2 * PLAYER_DD_WIDTH,
               MATCH_START_HEIGHT},
-             assets.pool_button_background, assets.pool_button_hover,
-             assets.pool_button_armed, "Start"),
+             assets.panel, "Start"),
       games_field_(
           {MATCH_COLUMN_1_X, MATCH_FIELD_Y, PLAYER_DD_WIDTH, SETTING_HEIGHT},
-          assets.pool_button_background, assets.pool_button_hover,
-          assets.pool_button_armed, "GAMES", "100"),
+          assets.panel, "GAMES", "100"),
       seed_field_(
           {MATCH_COLUMN_2_X, MATCH_FIELD_Y, PLAYER_DD_WIDTH, SETTING_HEIGHT},
-          assets.pool_button_background, assets.pool_button_hover,
-          assets.pool_button_armed, "SEED", "1"),
+          assets.panel, "SEED", "1"),
       player_1_dd_(
           {MATCH_COLUMN_1_X, PLAYER_DD_Y, PLAYER_DD_WIDTH, PLAYER_DD_HEIGHT},
-          assets.pool_button_background, assets.pool_button_hover,
-          assets.pool_button_armed, ENGINE_NAMES[0],
+          assets.panel, ENGINE_NAMES[0],
           std::vector<ButtonContent>(ENGINE_NAMES.begin(), ENGINE_NAMES.end())),
       player_2_dd_(
           {MATCH_COLUMN_2_X, PLAYER_DD_Y, PLAYER_DD_WIDTH, PLAYER_DD_HEIGHT},
-          assets.pool_button_background, assets.pool_button_hover,
-          assets.pool_button_armed, ENGINE_NAMES[1],
+          assets.panel, ENGINE_NAMES[1],
           std::vector<ButtonContent>(ENGINE_NAMES.begin(),
                                      ENGINE_NAMES.end())),
       rules_({MATCH_COLUMN_1_X, MATCH_RULES_Y, 2 * PLAYER_DD_WIDTH,
               SETTING_HEIGHT},
-             assets.pool_button_background, assets.pool_button_hover,
-             assets.pool_button_armed, "") {
+             assets.panel, "") {
 
   const float column_x[2] = {MATCH_COLUMN_1_X, MATCH_COLUMN_2_X};
   const int n = ENGINE_SETTINGS.size();
@@ -69,13 +64,11 @@ EngineMatch::EngineMatch(Game &game, MatchController &match_controller,
                      PLAYER_DD_WIDTH, SETTING_HEIGHT};
       if (s.kind == SettingKind::Number)
         settings_ui_[p].emplace_back(
-            std::in_place_type<TextField>, r, assets.pool_button_background,
-            assets.pool_button_hover, assets.pool_button_armed, s.label,
+            std::in_place_type<TextField>, r, assets.panel, s.label,
             s.default_value);
       else
         settings_ui_[p].emplace_back(
-            std::in_place_type<Button>, r, assets.pool_button_background,
-            assets.pool_button_hover, assets.pool_button_armed, "");
+            std::in_place_type<Button>, r, assets.panel, "");
     }
   }
 };
@@ -268,7 +261,7 @@ void EngineMatch::draw() {
 
 void EngineMatch::draw_output() const {
   float s = ui_scale();
-  const Texture2D &background = assets_.pool_button_background;
+  const Texture2D &background = assets_.panel;
   NPatchInfo patch = {{0, 0, (float)background.width, (float)background.height},
                       BORDER,
                       BORDER,
@@ -278,7 +271,7 @@ void EngineMatch::draw_output() const {
   DrawTextureNPatch(background, patch,
                     {MATCH_OUTPUT_X * s, MATCH_OUTPUT_Y * s,
                      MATCH_OUTPUT_WIDTH() * s, MATCH_OUTPUT_HEIGHT() * s},
-                    {0, 0}, 0.0f, WHITE);
+                    {0, 0}, 0.0f, colors::PANEL);
 
   const Color color = GetColor(0x1E1E1EFF);
   const int x = (int)((MATCH_OUTPUT_X + MATCH_OUTPUT_PADDING) * s);

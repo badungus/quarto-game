@@ -1,6 +1,7 @@
 // game_screen.cpp - Implements GameScreen layout, input routing and reaction to
 // match events.
 #include "game_screen.hpp"
+#include "colors.hpp"
 #include "command.hpp"
 #include "game_state.hpp"
 #include "layout.hpp"
@@ -59,41 +60,35 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
       undo_(Rectangle{canvas_width() / 2 - (0.5f * BUTTON_COUNT * BUTTON_WIDTH),
                       canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                       BUTTON_HEIGHT},
-            assets.pool_button_background, assets.pool_button_hover,
-            assets.pool_button_armed, &assets.undo),
+            assets.panel, &assets.undo),
       restart_(Rectangle{canvas_width() / 2 -
                              (0.5f * (BUTTON_COUNT - 2)) * BUTTON_WIDTH,
                          canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                          BUTTON_HEIGHT},
-               assets.pool_button_background, assets.pool_button_hover,
-               assets.pool_button_armed, &assets.restart),
+               assets.panel, &assets.restart),
 
       stop_search_(Rectangle{canvas_width() / 2 -
                                  (0.5f * (BUTTON_COUNT - 4) * BUTTON_WIDTH),
                              canvas_height() - BORDER - BUTTON_HEIGHT,
                              BUTTON_WIDTH, BUTTON_HEIGHT},
-                   assets.pool_button_background, assets.pool_button_hover,
-                   assets.pool_button_armed, &assets.stop_search),
+                   assets.panel, &assets.stop_search),
       pause_(Rectangle{canvas_width() / 2 -
                            (0.5f * (BUTTON_COUNT - 6) * BUTTON_WIDTH),
                        canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                        BUTTON_HEIGHT},
-             assets.pool_button_background, assets.pool_button_hover,
-             assets.pool_button_armed, &assets.pause),
+             assets.panel, &assets.pause),
 
       resume_(Rectangle{canvas_width() / 2 -
                             (0.5f * (BUTTON_COUNT - 8) * BUTTON_WIDTH),
                         canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                         BUTTON_HEIGHT},
-              assets.pool_button_background, assets.pool_button_hover,
-              assets.pool_button_armed, &assets.resume),
+              assets.panel, &assets.resume),
 
       redo_(Rectangle{canvas_width() / 2 -
                           (0.5f * (BUTTON_COUNT - 10) * BUTTON_WIDTH),
                       canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                       BUTTON_HEIGHT},
-            assets.pool_button_background, assets.pool_button_hover,
-            assets.pool_button_armed, &assets.redo) {
+            assets.panel, &assets.redo) {
 
   // Row-major, so pool_buttons_[i] sits at col i % POOL_COLS, row i / POOL_COLS
   // and shows piece i.
@@ -102,9 +97,7 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
       pool_buttons_.emplace_back(
           Rectangle{POOL_X() + col * POOL_TILE, POOL_Y + row * POOL_TILE,
                     POOL_TILE, POOL_TILE},
-          assets.pool_button_background, assets.pool_button_hover,
-          assets.pool_button_armed,
-          &assets.pool_button_images[row * POOL_COLS + col]);
+          assets.panel, &assets.pool_button_images[row * POOL_COLS + col]);
     }
   }
   for (int i = 0; i < 16; ++i) {
@@ -113,8 +106,7 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
     board_buttons_.emplace_back(
         Rectangle{BOARD_X() + col * BOARD_TILE, BOARD_Y + row * BOARD_TILE,
                   BOARD_TILE, BOARD_TILE},
-        assets.pool_button_background, assets.pool_button_hover,
-        assets.pool_button_armed, std::monostate{});
+        assets.panel, std::monostate{});
   }
 }
 
@@ -242,7 +234,7 @@ void GameScreen::draw_board() {
 }
 
 void GameScreen::draw_hand_slot() {
-  const Texture2D &background = assets_.pool_button_background;
+  const Texture2D &background = assets_.panel;
   float s = ui_scale();
   Rectangle dest = {HAND_X() * s - HAND_SIZE * s / 2.0f,
                     HAND_Y * s - HAND_SIZE * s / 2.0f, s * HAND_SIZE,
@@ -254,7 +246,7 @@ void GameScreen::draw_hand_slot() {
                       BORDER,
                       BORDER,
                       NPATCH_NINE_PATCH};
-  DrawTextureNPatch(background, patch, dest, {0, 0}, 0.0f, WHITE);
+  DrawTextureNPatch(background, patch, dest, {0, 0}, 0.0f, colors::PANEL);
   if (game_.hand() < 0)
     return;
   const Texture2D &content = assets_.pool_button_images[game_.hand()];
@@ -270,7 +262,7 @@ void GameScreen::draw_player() {
                                   match_controller_.match_config().player_2);
 
   float s = ui_scale();
-  const Texture2D &background = assets_.pool_button_background;
+  const Texture2D &background = assets_.panel;
   NPatchInfo patch = {{0, 0, (float)background.width, (float)background.height},
                       BORDER,
                       BORDER,
@@ -283,10 +275,11 @@ void GameScreen::draw_player() {
 
   Rectangle dest_right = {PLAYER_2_X() * s, PLAYER_Y * s, PLAYER_WIDTH * s,
                           PLAYER_HEIGHT() * s};
-  DrawTextureNPatch(background, patch, dest_left, {0, 0}, 0.0f, WHITE);
-  DrawTextureNPatch(background, patch, dest_right, {0, 0}, 0.0f, WHITE);
+  DrawTextureNPatch(background, patch, dest_left, {0, 0}, 0.0f, colors::PANEL);
+  DrawTextureNPatch(background, patch, dest_right, {0, 0}, 0.0f,
+                    colors::PANEL);
 
-  const Texture2D &name_background = assets_.pool_button_hover;
+  const Texture2D &name_background = assets_.panel;
 
   NPatchInfo name_patch = {
       {0, 0, (float)name_background.width, (float)name_background.height},
@@ -300,9 +293,9 @@ void GameScreen::draw_player() {
   Rectangle name_2_dest = {PLAYER_2_NAME_X() * s, PLAYER_NAME_Y * s,
                            PLAYER_NAME_WIDTH * s, PLAYER_NAME_HEIGHT * s};
   DrawTextureNPatch(name_background, name_patch, name_1_dest, {0, 0}, 0.0f,
-                    WHITE);
+                    colors::PANEL_HOVER);
   DrawTextureNPatch(name_background, name_patch, name_2_dest, {0, 0}, 0.0f,
-                    WHITE);
+                    colors::PANEL_HOVER);
   Rectangle current_player_marker_dest =
       game_.current_player() == PlayerID::ONE ? name_1_dest : name_2_dest;
   const Texture2D &tex = assets_.winning_cell;

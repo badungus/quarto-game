@@ -15,16 +15,13 @@ private:
   bool enabled_ = true;
   bool armed_ = false;
   // References, not copies, so textures loaded later are still seen.
-  const Texture2D &background_;
-  const Texture2D &hover_image_;
-  const Texture2D &armed_image_;
+  const Texture2D &panel_; // white, tinted by state
   ButtonContent content_;
   float text_scale_; // multiplies the default text size
 
 public:
-  Button(Rectangle bounds, const Texture2D &background,
-         const Texture2D &hover_image, const Texture2D &armed_image,
-         ButtonContent content, float text_scale = 1.0f);
+  Button(Rectangle bounds, const Texture2D &panel, ButtonContent content,
+         float text_scale = 1.0f);
   // Updates hover state; returns true if the button was clicked this frame.
   bool update(const Input &in);
   void draw() const;

@@ -2,11 +2,9 @@
 #include "text_field.hpp"
 #include <cctype>
 
-TextField::TextField(Rectangle bounds, const Texture2D &background,
-                     const Texture2D &hover_image, const Texture2D &armed_image,
+TextField::TextField(Rectangle bounds, const Texture2D &panel,
                      std::string label, std::string value)
-    : button_(bounds, background, hover_image, armed_image, ""), label_(label),
-      value_(value) {}
+    : button_(bounds, panel, ""), label_(label), value_(value) {}
 
 void TextField::update(const Input &in) {
   if (button_.update(in))

@@ -1,17 +1,15 @@
 #include "dropdown.hpp"
 #include <optional>
 
-Dropdown::Dropdown(Rectangle bounds, const Texture2D &background,
-                   const Texture2D &hover_image, const Texture2D &armed_image,
+Dropdown::Dropdown(Rectangle bounds, const Texture2D &panel,
                    ButtonContent content, std::vector<ButtonContent> dd_content)
-    : background_(background), hover_image_(hover_image),
-      armed_image_(armed_image), content_(content), dd_content_(dd_content),
-      main_button_(bounds, background, hover_image, armed_image, content) {
+    : panel_(panel), content_(content), dd_content_(dd_content),
+      main_button_(bounds, panel, content) {
   int idx = 0;
   for (auto cont : dd_content) {
     buttons_.emplace_back(Rectangle{bounds.x, bounds.y + idx * bounds.height,
                                     bounds.width, bounds.height},
-                          background, hover_image, armed_image, cont);
+                          panel, cont);
     idx++;
   }
 };

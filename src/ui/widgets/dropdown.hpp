@@ -8,9 +8,7 @@
 class Dropdown {
 private:
   Rectangle bounds_;
-  const Texture2D &background_;
-  const Texture2D &hover_image_;
-  const Texture2D &armed_image_;
+  const Texture2D &panel_;
   ButtonContent content_;
   std::vector<ButtonContent> dd_content_;
   Button main_button_;
@@ -18,9 +16,8 @@ private:
   bool active_ = false;
 
 public:
-  Dropdown(Rectangle bounds, const Texture2D &background,
-           const Texture2D &hover_image, const Texture2D &armed_image,
-           ButtonContent content, std::vector<ButtonContent> dd_content);
+  Dropdown(Rectangle bounds, const Texture2D &panel, ButtonContent content,
+           std::vector<ButtonContent> dd_content);
   void draw();
   std::optional<int> update(const Input &in);
   // True while the list is open, covering the rows below the dropdown.
