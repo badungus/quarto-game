@@ -13,9 +13,9 @@ MainMenu::MainMenu(Game &game, MatchController &match_controller,
                    MatchConfig &match_config, const Assets &assets)
     : game_(game), match_config_(match_config),
       start_({START_X(), START_Y, START_WIDTH, START_HEIGHT},
-             assets.panel, "Start"),
+             assets.panel, colors::PRIMARY_BUTTON, "Start"),
       engine_match_({START_X(), MENU_MATCH_Y(), START_WIDTH, MENU_MATCH_HEIGHT},
-                    assets.panel, "Engine Match"),
+                    assets.panel, colors::PRIMARY_BUTTON, "Engine Match"),
       player_1_dd_(
           {PLAYER_1_DD_X(), MENU_DD_Y(), PLAYER_DD_WIDTH, MENU_DD_HEIGHT},
           assets.panel, "PLAYER ONE",
@@ -25,7 +25,7 @@ MainMenu::MainMenu(Game &game, MatchController &match_controller,
           assets.panel, "PLAYER TWO",
           std::vector<ButtonContent>(PLAYERS.begin(), PLAYERS.end())),
       rules_({START_X(), MENU_RULES_Y(), START_WIDTH, SETTING_HEIGHT},
-             assets.panel, "") {
+             assets.panel, colors::SECONDARY_BUTTON, "") {
   const float column_x[2] = {PLAYER_1_DD_X(), PLAYER_2_DD_X()};
   const int n = ENGINE_SETTINGS.size();
   for (int p = 0; p < 2; ++p) {
@@ -40,7 +40,8 @@ MainMenu::MainMenu(Game &game, MatchController &match_controller,
             s.default_value);
       else
         settings_ui_[p].emplace_back(
-            std::in_place_type<Button>, r, assets.panel, "");
+            std::in_place_type<Button>, r, assets.panel,
+            colors::SECONDARY_BUTTON, "");
     }
   }
 };

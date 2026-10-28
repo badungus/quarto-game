@@ -34,7 +34,7 @@ Move any_move(const Position &pos) {
 
 // The jobs are the positions with this many pieces placed.
 // The book holds every position before them.
-constexpr int SEARCH_START_PLY = 4;
+constexpr int SEARCH_START_PLY = 5;
 
 Position canonical_position(const CanonKey &key) {
   Position pos;

@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "colors.hpp"
 #include "input.hpp"
 #include <raylib.h>
 
@@ -29,7 +30,7 @@ void Gui::run() {
     }
     screen_->update(read_input());
     BeginDrawing();
-    ClearBackground(GetColor(0x32393BFF));
+    ClearBackground(colors::ARENA);
     screen_->draw();
     EndDrawing();
     // Created hidden and shown only once a frame is drawn: until then the

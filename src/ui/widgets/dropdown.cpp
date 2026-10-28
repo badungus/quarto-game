@@ -4,12 +4,12 @@
 Dropdown::Dropdown(Rectangle bounds, const Texture2D &panel,
                    ButtonContent content, std::vector<ButtonContent> dd_content)
     : panel_(panel), content_(content), dd_content_(dd_content),
-      main_button_(bounds, panel, content) {
+      main_button_(bounds, panel, colors::SECONDARY_BUTTON, content) {
   int idx = 0;
   for (auto cont : dd_content) {
     buttons_.emplace_back(Rectangle{bounds.x, bounds.y + idx * bounds.height,
                                     bounds.width, bounds.height},
-                          panel, cont);
+                          panel, colors::SECONDARY_BUTTON, cont);
     idx++;
   }
 };

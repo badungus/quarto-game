@@ -14,7 +14,7 @@
 
 namespace quarto {
 
-const int DEFAULT_TT_SIZE = 2048;
+const int DEFAULT_TT_SIZE = 512;
 const std::tuple<Bitboard, std::array<Bitboard, 4>, Piece> DEFAULT_POSITION = {
     0xffff, {0, 0, 0, 0}, -1};
 

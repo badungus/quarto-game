@@ -7,6 +7,7 @@
 #include "layout.hpp"
 #include "match_config.hpp"
 #include "match_controller.hpp"
+#include "text.hpp"
 #include "types.hpp"
 #include <algorithm>
 #include <array>
@@ -42,14 +43,14 @@ void draw_move_header(const std::string &label, float x, float y, float width,
                       int font_size, Color color) {
   const float gap = font_size / 2.0f;
   const float thickness = std::max(1.0f, font_size / 12.0f);
-  const float label_width = MeasureText(label.c_str(), font_size);
+  const float label_width = text::measure(label.c_str(), font_size);
   const float label_x = x + (width - label_width) / 2;
   const float rule_y = y + (font_size - thickness) / 2;
   const float rule_width = label_x - gap - x;
   DrawRectangleRec({x, rule_y, rule_width, thickness}, color);
   DrawRectangleRec({x + width - rule_width, rule_y, rule_width, thickness},
                    color);
-  DrawText(label.c_str(), (int)label_x, (int)y, font_size, color);
+  text::draw(label.c_str(), (int)label_x, (int)y, font_size, color);
 }
 } // namespace
 
@@ -60,35 +61,35 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
       undo_(Rectangle{canvas_width() / 2 - (0.5f * BUTTON_COUNT * BUTTON_WIDTH),
                       canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                       BUTTON_HEIGHT},
-            assets.panel, &assets.undo),
+            assets.panel, colors::SECONDARY_BUTTON, &assets.undo),
       restart_(Rectangle{canvas_width() / 2 -
                              (0.5f * (BUTTON_COUNT - 2)) * BUTTON_WIDTH,
                          canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                          BUTTON_HEIGHT},
-               assets.panel, &assets.restart),
+               assets.panel, colors::SECONDARY_BUTTON, &assets.restart),
 
       stop_search_(Rectangle{canvas_width() / 2 -
                                  (0.5f * (BUTTON_COUNT - 4) * BUTTON_WIDTH),
                              canvas_height() - BORDER - BUTTON_HEIGHT,
                              BUTTON_WIDTH, BUTTON_HEIGHT},
-                   assets.panel, &assets.stop_search),
+                   assets.panel, colors::SECONDARY_BUTTON, &assets.stop_search),
       pause_(Rectangle{canvas_width() / 2 -
                            (0.5f * (BUTTON_COUNT - 6) * BUTTON_WIDTH),
                        canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                        BUTTON_HEIGHT},
-             assets.panel, &assets.pause),
+             assets.panel, colors::SECONDARY_BUTTON, &assets.pause),
 
       resume_(Rectangle{canvas_width() / 2 -
                             (0.5f * (BUTTON_COUNT - 8) * BUTTON_WIDTH),
                         canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                         BUTTON_HEIGHT},
-              assets.panel, &assets.resume),
+              assets.panel, colors::SECONDARY_BUTTON, &assets.resume),
 
       redo_(Rectangle{canvas_width() / 2 -
                           (0.5f * (BUTTON_COUNT - 10) * BUTTON_WIDTH),
                       canvas_height() - BORDER - BUTTON_HEIGHT, BUTTON_WIDTH,
                       BUTTON_HEIGHT},
-            assets.panel, &assets.redo) {
+            assets.panel, colors::SECONDARY_BUTTON, &assets.redo) {
 
   // Row-major, so pool_buttons_[i] sits at col i % POOL_COLS, row i / POOL_COLS
   // and shows piece i.
@@ -97,7 +98,8 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
       pool_buttons_.emplace_back(
           Rectangle{POOL_X() + col * POOL_TILE, POOL_Y + row * POOL_TILE,
                     POOL_TILE, POOL_TILE},
-          assets.panel, &assets.pool_button_images[row * POOL_COLS + col]);
+          assets.panel, colors::SLOT_BUTTON,
+          &assets.pool_button_images[row * POOL_COLS + col]);
     }
   }
   for (int i = 0; i < 16; ++i) {
@@ -106,7 +108,7 @@ GameScreen::GameScreen(Game &game, MatchController &match_controller,
     board_buttons_.emplace_back(
         Rectangle{BOARD_X() + col * BOARD_TILE, BOARD_Y + row * BOARD_TILE,
                   BOARD_TILE, BOARD_TILE},
-        assets.panel, std::monostate{});
+        assets.panel, colors::CELL_BUTTON, std::monostate{});
   }
 }
 
@@ -171,17 +173,35 @@ Action GameScreen::update(const Input &in) {
 }
 
 void GameScreen::draw_piece_pool() {
-
+  float s = ui_scale();
+  // Drawn like the board: panel as the background, outline as a ring on top.
+  // The slots touch, so two outlines separate their fills. With the ring on
+  // top, two outline widths of frame keep the same dark gap inside the ring.
+  const float w = 2 * colors::OUTLINE_WIDTH;
+  const Rectangle frame = {POOL_X() * s - w, POOL_Y * s - w,
+                           POOL_COLS * POOL_TILE * s + 2 * w,
+                           POOL_ROWS * POOL_TILE * s + 2 * w};
+  const Texture2D &background = assets_.panel;
+  NPatchInfo frame_patch = {
+      {0, 0, (float)background.width, (float)background.height},
+      BORDER,
+      BORDER,
+      BORDER,
+      BORDER,
+      NPATCH_NINE_PATCH};
+  DrawTextureNPatch(background, frame_patch, frame, {0, 0}, 0.0f,
+                    colors::POOL_FRAME);
+  DrawTextureNPatch(assets_.outline, frame_patch, frame, {0, 0}, 0.0f,
+                    colors::SLOT);
   for (int i = 0; i < 16; ++i) {
     pool_buttons_[i].draw();
   }
   Piece h = game_.hand();
   if (h < 0)
     return;
-  float s = ui_scale();
   int col = h % POOL_COLS;
   int row = h / POOL_COLS;
-  const Texture2D &tex = assets_.winning_cell;
+  const Texture2D &tex = assets_.outline;
   Rectangle dest = {(POOL_X() + col * POOL_TILE) * s,
                     (POOL_Y + row * POOL_TILE) * s, POOL_TILE * s,
                     POOL_TILE * s};
@@ -191,30 +211,33 @@ void GameScreen::draw_piece_pool() {
                       BORDER,
                       BORDER,
                       NPATCH_NINE_PATCH};
-  DrawTextureNPatch(tex, patch, dest, {0, 0}, 0.0f, WHITE);
+  DrawTextureNPatch(tex, patch, dest, {0, 0}, 0.0f, colors::TERTIARY);
 }
 
 void GameScreen::draw_board() {
   float s = ui_scale();
-  Texture2D background = assets_.board_background;
+  Texture2D background = assets_.panel;
   NPatchInfo patch = {{0, 0, (float)background.width, (float)background.height},
                       BORDER,
                       BORDER,
                       BORDER,
                       BORDER,
                       NPATCH_NINE_PATCH};
-  DrawTextureNPatch(background, patch,
-                    {(BOARD_X() - BOARD_PADDING) * s,
-                     (BOARD_Y - BOARD_PADDING) * s,
-                     (BOARD_TILE * 4 + 2 * BOARD_PADDING) * s,
-                     (BOARD_TILE * 4 + 2 * BOARD_PADDING) * s},
-                    {0, 0}, 0.0f, WHITE);
+  const Rectangle frame = {(BOARD_X() - BOARD_PADDING) * s,
+                           (BOARD_Y - BOARD_PADDING) * s,
+                           (BOARD_TILE * 4 + 2 * BOARD_PADDING) * s,
+                           (BOARD_TILE * 4 + 2 * BOARD_PADDING) * s};
+  DrawTextureNPatch(background, patch, frame, {0, 0}, 0.0f,
+                    colors::SURFACE_LOWEST);
+  // panel and outline share their size and corners, so one patch fits both.
+  DrawTextureNPatch(assets_.outline, patch, frame, {0, 0}, 0.0f,
+                    colors::CELL);
   for (int i = 0; i < 16; ++i) {
 
     board_buttons_[i].draw();
   }
   if (game_.win()) {
-    const Texture2D &tex = assets_.winning_cell;
+    const Texture2D &tex = assets_.outline;
     std::array<int, 4> winning_line = game_.winning_line();
     for (int i = 0; i < 4; ++i) {
       int col = winning_line[i] % 4;
@@ -228,7 +251,7 @@ void GameScreen::draw_board() {
                           BORDER,
                           BORDER,
                           NPATCH_NINE_PATCH};
-      DrawTextureNPatch(tex, patch, dest, {0, 0}, 0.0f, WHITE);
+      DrawTextureNPatch(tex, patch, dest, {0, 0}, 0.0f, colors::TERTIARY);
     }
   }
 }
@@ -246,7 +269,7 @@ void GameScreen::draw_hand_slot() {
                       BORDER,
                       BORDER,
                       NPATCH_NINE_PATCH};
-  DrawTextureNPatch(background, patch, dest, {0, 0}, 0.0f, colors::PANEL);
+  DrawTextureNPatch(background, patch, dest, {0, 0}, 0.0f, colors::SLOT);
   if (game_.hand() < 0)
     return;
   const Texture2D &content = assets_.pool_button_images[game_.hand()];
@@ -262,22 +285,20 @@ void GameScreen::draw_player() {
                                   match_controller_.match_config().player_2);
 
   float s = ui_scale();
-  const Texture2D &background = assets_.panel;
-  NPatchInfo patch = {{0, 0, (float)background.width, (float)background.height},
-                      BORDER,
-                      BORDER,
-                      BORDER,
-                      BORDER,
-                      NPATCH_NINE_PATCH};
-
   Rectangle dest_left = {PLAYER_1_X * s, PLAYER_Y * s, PLAYER_WIDTH * s,
                          PLAYER_HEIGHT() * s};
 
   Rectangle dest_right = {PLAYER_2_X() * s, PLAYER_Y * s, PLAYER_WIDTH * s,
                           PLAYER_HEIGHT() * s};
-  DrawTextureNPatch(background, patch, dest_left, {0, 0}, 0.0f, colors::PANEL);
-  DrawTextureNPatch(background, patch, dest_right, {0, 0}, 0.0f,
-                    colors::PANEL);
+  DrawRectangleRec(dest_left, colors::SURFACE_HIGH);
+  DrawRectangleRec(dest_right, colors::SURFACE_HIGH);
+  // Outline on the side facing the board.
+  DrawRectangleRec({dest_left.x + dest_left.width - colors::OUTLINE_WIDTH,
+                    dest_left.y, colors::OUTLINE_WIDTH, dest_left.height},
+                   colors::OUTLINE);
+  DrawRectangleRec({dest_right.x, dest_right.y, colors::OUTLINE_WIDTH,
+                    dest_right.height},
+                   colors::OUTLINE);
 
   const Texture2D &name_background = assets_.panel;
 
@@ -292,13 +313,17 @@ void GameScreen::draw_player() {
                            PLAYER_NAME_WIDTH * s, PLAYER_NAME_HEIGHT * s};
   Rectangle name_2_dest = {PLAYER_2_NAME_X() * s, PLAYER_NAME_Y * s,
                            PLAYER_NAME_WIDTH * s, PLAYER_NAME_HEIGHT * s};
+  // Both names get the bright card; the ring marks the player to move.
+  const bool one_to_move = game_.current_player() == PlayerID::ONE;
+  const Color name_fill = colors::PRIMARY_CONTAINER;
+  const Color name_text = colors::ON_PRIMARY_CONTAINER;
   DrawTextureNPatch(name_background, name_patch, name_1_dest, {0, 0}, 0.0f,
-                    colors::PANEL_HOVER);
+                    name_fill);
   DrawTextureNPatch(name_background, name_patch, name_2_dest, {0, 0}, 0.0f,
-                    colors::PANEL_HOVER);
+                    name_fill);
   Rectangle current_player_marker_dest =
-      game_.current_player() == PlayerID::ONE ? name_1_dest : name_2_dest;
-  const Texture2D &tex = assets_.winning_cell;
+      one_to_move ? name_1_dest : name_2_dest;
+  const Texture2D &tex = assets_.outline;
   NPatchInfo current_player_marker_patch = {
       {0, 0, (float)tex.width, (float)tex.height},
       BORDER,
@@ -307,19 +332,20 @@ void GameScreen::draw_player() {
       BORDER,
       NPATCH_NINE_PATCH};
   DrawTextureNPatch(tex, current_player_marker_patch,
-                    current_player_marker_dest, {0, 0}, 0.0f, WHITE);
-  int name_1_font_size = (int)(name_1_dest.height * 0.3f);
-  int name_1_text_width = MeasureText(name_1.c_str(), name_1_font_size);
-  DrawText(name_1.c_str(),
-           (int)(name_1_dest.x + (name_1_dest.width - name_1_text_width) / 2),
-           (int)(name_1_dest.y + (name_1_dest.height - name_1_font_size) / 2),
-           name_1_font_size, GetColor(0x1E1E1EFF));
-  int name_2_font_size = (int)(name_2_dest.height * 0.3f);
-  int name_2_text_width = MeasureText(name_2.c_str(), name_2_font_size);
-  DrawText(name_2.c_str(),
-           (int)(name_2_dest.x + (name_2_dest.width - name_2_text_width) / 2),
-           (int)(name_2_dest.y + (name_2_dest.height - name_2_font_size) / 2),
-           name_2_font_size, GetColor(0x1E1E1EFF));
+                    current_player_marker_dest, {0, 0}, 0.0f,
+                    colors::TERTIARY);
+  int name_1_font_size = (int)(name_1_dest.height * 0.35f);
+  float name_1_text_width = text::measure(name_1.c_str(), name_1_font_size);
+  text::draw(name_1.c_str(),
+             (int)(name_1_dest.x + (name_1_dest.width - name_1_text_width) / 2),
+             (int)(name_1_dest.y + (name_1_dest.height - name_1_font_size) / 2),
+             name_1_font_size, name_text);
+  int name_2_font_size = (int)(name_2_dest.height * 0.35f);
+  float name_2_text_width = text::measure(name_2.c_str(), name_2_font_size);
+  text::draw(name_2.c_str(),
+             (int)(name_2_dest.x + (name_2_dest.width - name_2_text_width) / 2),
+             (int)(name_2_dest.y + (name_2_dest.height - name_2_font_size) / 2),
+             name_2_font_size, name_text);
 
   Texture2D evalbar_background = assets_.evalbar_background;
   Texture2D evalbar = assets_.evalbar;
@@ -354,8 +380,10 @@ void GameScreen::draw_player() {
         EVALBAR_1_X * s, ((EVALBAR_Y + EVALBAR_HEIGHT() - evalbar_height)) * s,
         EVALBAR_WIDTH * s, evalbar_height * s};
     DrawTextureNPatch(evalbar_background, evalbar_background_patch,
-                      eval_1_background_dest, {0, 0}, 0.0f, WHITE);
-    DrawTextureNPatch(evalbar, evalbar_patch, eval_1_dest, {0, 0}, 0.0f, WHITE);
+                      eval_1_background_dest, {0, 0}, 0.0f,
+                      colors::EVAL_DARK);
+    DrawTextureNPatch(evalbar, evalbar_patch, eval_1_dest, {0, 0}, 0.0f,
+                      colors::EVAL_LIGHT);
 
     draw_engine_output(info_player_1, ENGINE_OUTPUT_PLAYER_1_X, 0);
   };
@@ -378,8 +406,10 @@ void GameScreen::draw_player() {
                                  s,
                              EVALBAR_WIDTH * s, evalbar_height * s};
     DrawTextureNPatch(evalbar_background, evalbar_background_patch,
-                      eval_2_background_dest, {0, 0}, 0.0f, WHITE);
-    DrawTextureNPatch(evalbar, evalbar_patch, eval_2_dest, {0, 0}, 0.0f, WHITE);
+                      eval_2_background_dest, {0, 0}, 0.0f,
+                      colors::EVAL_DARK);
+    DrawTextureNPatch(evalbar, evalbar_patch, eval_2_dest, {0, 0}, 0.0f,
+                      colors::EVAL_LIGHT);
 
     draw_engine_output(info_player_2, ENGINE_OUTPUT_PLAYER_2_X(), 1);
   };
@@ -415,14 +445,14 @@ void GameScreen::draw_engine_output(
   const int first = std::max(0, last - visible);
   const float s = ui_scale();
   const int font_size = (int)(ENGINE_OUTPUT_SIZE * s);
-  const Color color = GetColor(0x1E1E1EFF);
   for (int i = first; i < last; ++i) {
     const float y = (ENGINE_OUTPUT_Y + (i - first) * ENGINE_OUTPUT_LINE) * s;
     if (lines[i].header)
       draw_move_header(lines[i].text, x * s, y, ENGINE_OUTPUT_WIDTH * s,
-                       font_size, color);
+                       font_size, colors::PRIMARY);
     else
-      DrawText(lines[i].text.c_str(), x * s, y, font_size, color);
+      text::draw(lines[i].text.c_str(), x * s, y, font_size,
+                 colors::ON_SURFACE_VARIANT);
   }
 }
 

@@ -2,6 +2,7 @@
 #include "results_screen.hpp"
 #include "button.hpp"
 #include "colors.hpp"
+#include "text.hpp"
 #include "command.hpp"
 #include "game_state.hpp"
 #include "layout.hpp"
@@ -35,7 +36,7 @@ EngineMatch::EngineMatch(Game &game, MatchController &match_controller,
       match_config_(match_config), assets_(assets),
       start_({MATCH_COLUMN_1_X, MATCH_START_Y, 2 * PLAYER_DD_WIDTH,
               MATCH_START_HEIGHT},
-             assets.panel, "Start"),
+             assets.panel, colors::PRIMARY_BUTTON, "Start"),
       games_field_(
           {MATCH_COLUMN_1_X, MATCH_FIELD_Y, PLAYER_DD_WIDTH, SETTING_HEIGHT},
           assets.panel, "GAMES", "100"),
@@ -53,7 +54,7 @@ EngineMatch::EngineMatch(Game &game, MatchController &match_controller,
                                      ENGINE_NAMES.end())),
       rules_({MATCH_COLUMN_1_X, MATCH_RULES_Y, 2 * PLAYER_DD_WIDTH,
               SETTING_HEIGHT},
-             assets.panel, "") {
+             assets.panel, colors::SECONDARY_BUTTON, "") {
 
   const float column_x[2] = {MATCH_COLUMN_1_X, MATCH_COLUMN_2_X};
   const int n = ENGINE_SETTINGS.size();
@@ -68,7 +69,8 @@ EngineMatch::EngineMatch(Game &game, MatchController &match_controller,
             s.default_value);
       else
         settings_ui_[p].emplace_back(
-            std::in_place_type<Button>, r, assets.panel, "");
+            std::in_place_type<Button>, r, assets.panel,
+            colors::SECONDARY_BUTTON, "");
     }
   }
 };
@@ -271,9 +273,9 @@ void EngineMatch::draw_output() const {
   DrawTextureNPatch(background, patch,
                     {MATCH_OUTPUT_X * s, MATCH_OUTPUT_Y * s,
                      MATCH_OUTPUT_WIDTH() * s, MATCH_OUTPUT_HEIGHT() * s},
-                    {0, 0}, 0.0f, colors::PANEL);
+                    {0, 0}, 0.0f, colors::SURFACE_HIGH);
 
-  const Color color = GetColor(0x1E1E1EFF);
+  const Color color = colors::ON_SURFACE_VARIANT;
   const int x = (int)((MATCH_OUTPUT_X + MATCH_OUTPUT_PADDING) * s);
   const int font_size = (int)(MATCH_OUTPUT_FONT * s);
 
@@ -282,14 +284,14 @@ void EngineMatch::draw_output() const {
                   wins_[1], draws_);
   if (running_)
     header += std::format("    game {} of {}", games_played_ + 1, max_games_);
-  DrawText(header.c_str(), x,
-           (int)((MATCH_OUTPUT_Y + MATCH_OUTPUT_PADDING) * s),
-           (int)(1.4f * font_size), color);
+  text::draw(header.c_str(), x,
+             (int)((MATCH_OUTPUT_Y + MATCH_OUTPUT_PADDING) * s),
+             (int)(1.4f * font_size), colors::ON_SURFACE);
 
   const int last = (int)log_.size() - scroll_;
   const int first = std::max(0, last - VISIBLE_LINES());
   for (int i = first; i < last; ++i)
-    DrawText(log_[i].c_str(), x,
-             (int)((LOG_Y + (i - first) * MATCH_OUTPUT_LINE) * s), font_size,
-             color);
+    text::draw(log_[i].c_str(), x,
+               (int)((LOG_Y + (i - first) * MATCH_OUTPUT_LINE) * s), font_size,
+               color);
 }

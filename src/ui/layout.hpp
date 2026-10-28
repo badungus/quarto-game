@@ -43,7 +43,7 @@ constexpr float BOARD_TILE = 125;
 inline float BOARD_X() { return canvas_width() / 2 - 2 * BOARD_TILE; }
 // Fixed like the hand and pool around it, so extra height goes below the pool.
 constexpr float BOARD_Y = DESIGN_HEIGHT / 2 - 2 * BOARD_TILE - 125;
-constexpr float BOARD_PADDING = 10;
+constexpr float BOARD_PADDING = 5;
 
 inline float HAND_X() { return canvas_width() / 2; }
 constexpr float HAND_Y = 200;
@@ -132,8 +132,8 @@ inline float ENGINE_OUTPUT_PLAYER_2_X() {
 }
 constexpr float ENGINE_OUTPUT_Y =
     PLAYER_NAME_Y + PLAYER_NAME_HEIGHT + UI_SPACING;
-constexpr float ENGINE_OUTPUT_SIZE = 12;
-constexpr float ENGINE_OUTPUT_LINE = 0.7f * UI_SPACING;
+constexpr float ENGINE_OUTPUT_SIZE = 14;
+constexpr float ENGINE_OUTPUT_LINE = 0.82f * UI_SPACING;
 // Up to the spacing before player one's evalbar; player two's column is just
 // as wide.
 constexpr float ENGINE_OUTPUT_WIDTH =

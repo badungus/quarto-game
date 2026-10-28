@@ -4,7 +4,8 @@
 
 TextField::TextField(Rectangle bounds, const Texture2D &panel,
                      std::string label, std::string value)
-    : button_(bounds, panel, ""), label_(label), value_(value) {}
+    : button_(bounds, panel, colors::SECONDARY_BUTTON, ""), label_(label),
+      value_(value) {}
 
 void TextField::update(const Input &in) {
   if (button_.update(in))

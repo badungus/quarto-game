@@ -13,7 +13,7 @@ Screen::Screen(const Assets &assets)
       engine_match_(game, match_controller, match_config, assets),
       home_button_(Rectangle{HOME_BUTTON_X(), HOME_BUTTON_Y, HOME_BUTTON_WIDTH,
                              HOME_BUTTON_HEIGHT},
-                   assets.panel, "QUARTO!", 2.0f) {};
+                   assets.panel, colors::SECONDARY_BUTTON, "QUARTO", 2.0f) {};
 
 void Screen::update(const Input &in) {
   ScreenId screen = current_;
@@ -76,16 +76,10 @@ void Screen::draw() {
 
 void Screen::draw_navbar() {
   float s = ui_scale();
-  Texture2D navbar = assets_.panel;
-
-  NPatchInfo patch = {{0, 0, (float)navbar.width, (float)navbar.height},
-                      BORDER,
-                      BORDER,
-                      BORDER,
-                      BORDER,
-                      NPATCH_NINE_PATCH};
-  DrawTextureNPatch(navbar, patch,
-                    {0, 0, canvas_width() * s, NAVBAR_HEIGHT * s}, {0, 0},
-                    0.0f, colors::PANEL);
+  DrawRectangleRec({0, 0, canvas_width() * s, NAVBAR_HEIGHT * s},
+                   colors::SURFACE_HIGH);
+  DrawRectangleRec({0, NAVBAR_HEIGHT * s - colors::OUTLINE_WIDTH,
+                    canvas_width() * s, colors::OUTLINE_WIDTH},
+                   colors::OUTLINE);
   home_button_.draw();
 };

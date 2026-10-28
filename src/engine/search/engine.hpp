@@ -20,7 +20,7 @@ const bool DEFAULT_SQUARES = false; // normal play: only lines win
 const int DEFAULT_DEPTH = 16;
 // TT size in MB, without the TT feature the table is not used, so it gets the
 // smallest size, one entry.
-const int DEFAULT_TT_SIZE = TT ? 2048 : 0;
+const int DEFAULT_TT_SIZE = TT ? 256 : 0;
 const std::tuple<Bitboard, std::array<Bitboard, 4>, Piece> DEFAULT_POSITION = {
     0xffff, {0, 0, 0, 0}, -1};
 

@@ -1,5 +1,6 @@
 // button.hpp - Declares the immediate-mode Button widget (normal, hover).
 #pragma once
+#include "colors.hpp"
 #include "input.hpp"
 #include <raylib.h>
 #include <string>
@@ -16,12 +17,13 @@ private:
   bool armed_ = false;
   // References, not copies, so textures loaded later are still seen.
   const Texture2D &panel_; // white, tinted by state
+  ButtonColors palette_;
   ButtonContent content_;
   float text_scale_; // multiplies the default text size
 
 public:
-  Button(Rectangle bounds, const Texture2D &panel, ButtonContent content,
-         float text_scale = 1.0f);
+  Button(Rectangle bounds, const Texture2D &panel, ButtonColors palette,
+         ButtonContent content, float text_scale = 1.0f);
   // Updates hover state; returns true if the button was clicked this frame.
   bool update(const Input &in);
   void draw() const;
