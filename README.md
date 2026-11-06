@@ -18,7 +18,6 @@ plain alpha-beta search to a perfect-play solver with an opening book.
 - [Getting started](#getting-started)
 - [Usage](#usage)
 - [UQI protocol](#uqi-protocol)
-- [Headless engine matches](#headless-engine-matches)
 - [Project structure](#project-structure)
 - [Architecture](#architecture)
 - [Development notes](#development-notes)
@@ -44,8 +43,9 @@ plain alpha-beta search to a perfect-play solver with an opening book.
 - **Engines run as separate processes** and talk to the GUI over a small text
   protocol ([UQI](#uqi-protocol)), so an engine can be developed, tested and
   replaced without touching the GUI.
-- **Headless match runner** in Python for engine-vs-engine testing without the
-  GUI.
+- **Benchmark builds**: Odin with single features switched off, and a ladder
+  that adds one feature at a time to Baldur, for measuring what each search
+  feature is worth.
 
 ## The game
 
@@ -74,22 +74,58 @@ program in `src/engine/optimal/`.
 |-------------|----------|
 | **Baldur**  | Baseline: iterative-deepening negamax with alpha-beta pruning on a bitboard position, root moves searched with a full window. No features switched on. |
 | **Thor**    | Baldur plus a check for an immediate win before any subtree is searched, a leaf evaluation that recognises positions where every give loses, a narrowed root window that cuts off worse moves early, and win scores based on the number of pieces on the board. |
-| **Odin**    | Thor plus table-based win detection, only safe gives searched, a transposition table (exact keys, packed 16-byte entries, generations) with its best move searched first, symmetry reduction (32 board symmetries × 384 piece relabelings) for shallow positions, the previous best root move first, and threat-based cell ordering. |
-| **Optimal** | Perfect play. Plays from an opening book (`src/engine/optimal/book.bin`) while the position is in it, picking at random among the best moves, and solves the position to the end of the game after that. Ignores depth and move-time limits. The book shows the start position is a draw. |
+| **Odin**    | Thor plus table-based win detection, only safe gives searched, a transposition table (exact keys, packed 16-byte entries, generations) with its best move searched first, symmetry reduction (32 board symmetries × 384 piece relabelings) for positions with up to 10 pieces, the previous best root move first, and threat-based cell ordering. |
+| **Optimal** | Perfect play. Plays from an opening book while the position is in it, picking at random among the best moves, and solves the position to the end of the game after that, with threat-based cell ordering. Ignores depth and move-time limits. The book shows the start position is a draw. |
 
 Baldur, Thor and Odin accept `depth`, `movetime` and `infinite` limits and
 report a forced win or loss as `mate N` once they find one. With `squares` on
 the `go` line they also count 2x2 squares of four pieces sharing a property as
 a win, for that search only; without it they play normal Quarto.
 
+Optimal picks its rules when it starts instead: `optimal --squares` plays the
+2x2 squares mode from `square_book.bin`, plain `optimal` plays normal Quarto
+from `book.bin`. The GUI passes the flag itself. Both books are read from
+`src/engine/optimal/` (the path is compiled in by CMake), not from `build/`.
+
+### Benchmark builds
+
+Besides the three presets, `src/engine/search/CMakeLists.txt` builds variants
+for measuring the search features. They are not in the GUI's player list, but
+speak UQI like the others:
+
+- `odin_no_<feature>`: Odin with one feature switched off (features that
+  depend on it go with it).
+- `ladder_NN_<feature>`: Baldur plus one feature per step, in an order that
+  meets every dependency. Step 4 is Thor and step 11 is Odin, so those two are
+  not built again.
+
+The features, all in `src/engine/search/features.hpp`:
+
+| Switch | Effect | Needs |
+|---|---|---|
+| `PIECE_COUNT_SCORE` | A win scores higher the fewer pieces are on the board. | |
+| `WIN_CHECK_AT_ENTRY` | Every node first checks whether the piece in hand wins on an empty cell. | |
+| `THREAT_EVAL` | A leaf is lost if every placement and give lets the opponent win at once. | `PIECE_COUNT_SCORE`, `WIN_CHECK_AT_ENTRY` |
+| `NARROW_ROOT_WINDOW` | Root moves are searched with the window (best − 1, ∞). | |
+| `COMPLETES_TABLE` | Table lookup for pieces that let the opponent win at once. | `THREAT_EVAL` |
+| `SAFE_GIVES` | Only gives that don't lose at once are searched. | `COMPLETES_TABLE` |
+| `TT` | Transposition table. | `PIECE_COUNT_SCORE` |
+| `TT_MOVE` | The TT's best move is searched first. | `TT` and `SAFE_GIVES` or `WIN_CHECK_AT_ENTRY` |
+| `CANONICAL` | Symmetric positions share one TT entry. | `TT` |
+| `ROOT_BEST_FIRST` | The root searches the previous iteration's best move first. | |
+| `THREAT_ORDERING` | Cells are searched in order of a threat score. | `COMPLETES_TABLE` |
+
 ### Optimal on the command line
 
 Besides running as a UQI engine, `optimal` can solve positions directly:
 
 ```sh
-optimal --solve POSITION [--tt MB] [--no-distance]       # prove win / draw / loss for one position
-optimal --full [--threads N] [--tt MB] [--no-distance]   # solve the whole game and write the book
+optimal --solve POSITION [--squares] [--tt MB] [--no-distance]       # prove win / draw / loss for one position
+optimal --full [--squares] [--threads N] [--tt MB] [--no-distance]   # solve the whole game and write the book
 ```
+
+- `--squares` solves with the 2x2 squares rule; `--full` then writes
+  `square_book.bin` instead of `book.bin`.
 
 - `--solve` runs on one thread without the book and prints the result for the
   side to move, how soon (`mate`), a move that achieves it, the node count and
@@ -117,7 +153,6 @@ optimal --full [--threads N] [--tt MB] [--no-distance]   # solve the whole game 
 | Git | any | CMake uses it to download the dependencies |
 | raylib | 5.5 | **Downloaded automatically** by CMake (`FetchContent`) |
 | tiny-process-library | pinned commit | **Downloaded automatically**; launches the engine processes |
-| Python | 3 | Only for `tools/match.py` |
 
 The first configure needs an internet connection to clone the dependencies into
 `build/_deps/`.
@@ -152,10 +187,16 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-This builds the GUI (`quarto`) and all four engines (`baldur`, `thor`, `odin`,
-`optimal`) into `build/`. Use `-DCMAKE_BUILD_TYPE=Debug` for debugging. Without
-a build type, CMake builds without optimisations and the engines run much
-slower.
+This builds the GUI (`quarto`), the four engines (`baldur`, `thor`, `odin`,
+`optimal`) and the [benchmark builds](#benchmark-builds) into `build/`. Use
+`-DCMAKE_BUILD_TYPE=Debug` for debugging. Without a build type, CMake builds
+without optimisations and the engines run much slower.
+
+Optimal is compiled with `-march=native`, so its binary only runs on CPUs like
+the one it was built on. The build also compiles `proof/syms.cpp`, a
+compile-time proof that the engines' 32 board symmetries (and the subset kept
+in squares mode) are the complete symmetry group; if the claim ever breaks, the
+build fails.
 
 ### Run
 
@@ -196,7 +237,7 @@ line-based protocol modelled on chess's UCI.
 | `uqi` | Handshake; the engine replies `uqiok`. |
 | `isready` | The engine replies `readyok`. |
 | `seed N` | Fixes the engine's tie-break random generator until the next `seed`. |
-| `go [depth N] [movetime MS] [infinite] [squares] [position POS]` | Sets the limits, the rules and the position and starts a search. `squares`: 2x2 squares win too (Baldur, Thor, Odin). Limits, rules and position reset after each `go`. |
+| `go [depth N] [movetime MS] [infinite] [squares] [position POS]` | Sets the limits, the rules and the position and starts a search. `squares`: 2x2 squares win too (Baldur, Thor, Odin; Optimal takes `--squares` at startup instead). Limits, rules and position reset after each `go`. |
 | `stop` | Stops the current search; the engine still sends `bestmove`. |
 | `quit` | Stops the search and exits. |
 
@@ -249,55 +290,34 @@ Thor with a fixed seed (`>` is sent to the engine, `<` is its reply):
 > quit
 ```
 
-## Headless engine matches
-
-`tools/match.py` plays two engines against each other without the GUI. It needs
-Python 3 and the engines built in `build/`:
-
-```sh
-python tools/match.py --a thor --b odin --games 100 --movetime 200
-```
-
-| Option | Default | Meaning |
-|---|---|---|
-| `--a` | `thor` | First engine (executable name) |
-| `--b` | `odin` | Second engine (executable name) |
-| `--games` | `100` | Number of games |
-| `--movetime` | `200` | Milliseconds per move |
-| `--seed` | `1` | Seeds the per-game engine seeds |
-| `--build` | `build/` | Directory with the engine executables |
-
-Games start from the empty board and the engines take turns moving first. The
-runner checks every move against the rules (an illegal move loses), prints each
-game with the seeds both engines got, and finishes with the score, first- and
-second-player wins, average game length and an Elo estimate with a 95%
-confidence interval.
-
 ## Project structure
 
 ```
 quarto-game/
 ├── CMakeLists.txt            build definition; fetches raylib and tiny-process-library
 ├── LICENSE
-├── assets/images/
-│   ├── board/                board background, winning-cell highlight
-│   ├── buttons/              button backgrounds and icons
-│   ├── pieces/               piece0.png … piece15.png
-│   └── players/              evaluation bar
-├── tools/
-│   └── match.py              headless engine-vs-engine match runner
+├── assets/
+│   ├── fonts/                Chakra Petch (SIL Open Font License)
+│   └── images/
+│       ├── background/       white panel and outline textures, tinted in code
+│       ├── board/            board background, winning-cell highlight
+│       ├── buttons/          button icons
+│       ├── pieces/           piece0.png … piece15.png
+│       └── players/          evaluation bar
+├── proof/
+│   └── syms.cpp              compile-time proof of the board symmetry group
 └── src/
     ├── main.cpp              creates the game and GUI and runs the main loop
     ├── engine/               standalone UQI engines, one executable each
-    │   ├── search/           baldur, thor, odin: one source, feature switches
-    │   └── optimal/          solver + book.bin opening book
+    │   ├── search/           baldur, thor, odin and benchmark builds: one source, feature switches
+    │   └── optimal/          solver + book.bin / square_book.bin opening books
     ├── game/                 game state and rules, independent of the UI
     ├── match/                match configuration, turn flow, commands
     ├── players/              human and engine players
     └── ui/                   everything that uses raylib
-        ├── screens/          main menu, game, engine match
+        ├── screens/          main menu, game, engine match (results_screen)
         ├── widgets/          button, dropdown, text field
-        └── theme/            asset loading and theme
+        └── theme/            asset loading, colours, text drawing
 ```
 
 ## Architecture
@@ -345,11 +365,13 @@ game/      Game state, Move, rules
 - Every header starts with `#pragma once`.
 - Don't call raylib functions such as `GetScreenWidth()` in global or `static`
   initialisers. They run before `InitWindow()` and return 0.
-- Load assets with `GetApplicationDirectory()` (see `game_screen.cpp`), not
+- Load assets with `GetApplicationDirectory()` (see `src/ui/theme/assets.cpp`), not
   with a bare relative path, which only works from one specific folder.
 - On Windows, close the running game before rebuilding. Otherwise the linker
   fails with `cannot open output file quarto.exe: Permission denied`.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE). The Chakra Petch
+font in `assets/fonts/` is licensed under the
+[SIL Open Font License](assets/fonts/OFL.txt).
